@@ -1,0 +1,9 @@
+﻿<#@ assembly name="Microsoft.Interop.Security.AzRoles" #>
+<#@ include file="T4Toolbox\AzMan\AzManApplicationEnumTemplate.tt" #>
+<#@ include file="T4Toolbox\AzMan\AzManStoreClassTemplate.tt" #>
+<#@ include file="T4Toolbox\AzMan\AzManWrapperGenerator.tt" #>
+<#
+// <copyright file="AzMan.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+#>

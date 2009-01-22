@@ -1,0 +1,318 @@
+﻿<#+
+// <copyright file="LinqToSqlSchemaGenerator.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Generates SQL schema scripts from a LINQ to SQL 
+/// </summary>
+public class LinqToSqlSchemaGenerator : Generator
+{
+    /// <summary>
+    /// Maps .NET types to their SQL counterparts
+    /// </summary>
+    private static System.Collections.Generic.Dictionary<string, string> dataTypes;
+
+    /// <summary>
+    /// Initializes a dictionary
+    /// </summary>
+    static LinqToSqlSchemaGenerator()
+    {
+        // Build dictionary of .NET/SQL types based on http://msdn.microsoft.com/en-us/library/bb386947.aspx
+        LinqToSqlSchemaGenerator.dataTypes = new System.Collections.Generic.Dictionary<string, string>();
+
+        // Numeric mapping
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Boolean).FullName] = "BIT";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Byte).FullName]    = "TINYINT";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Int16).FullName]   = "SMALLINT";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Int32).FullName]   = "INT";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Int64).FullName]   = "BIGINT";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.SByte).FullName]   = "SMALLINT";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.UInt16).FullName]  = "INT";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.UInt32).FullName]  = "BIGINT";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.UInt64).FullName]  = "DECIMAL(20)";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Decimal).FullName] = "DECIMAL(29,4)";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Single).FullName]  = "REAL";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Double).FullName]  = "FLOAT";
+
+        // Text mapping
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Char).FullName]   = "NCHAR(1)";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.String).FullName] = "NVARCHAR(4000)";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Char[]).FullName] = "NVARCHAR(4000)";
+
+        // XML mapping
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Xml.Linq.XElement).FullName]  = "XML";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Xml.Linq.XDocument).FullName] = "XML";
+
+        // Date and Time mapping
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.DateTime).FullName]       = "DATETIME";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.DateTimeOffset).FullName] = "DATETIMEOFFSET";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.TimeSpan).FullName]       = "TIME";
+
+        // Binary mapping
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Data.Linq.Binary).FullName]					= "VARBINARY(MAX)";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Byte[]).FullName]          					= "VARBINARY(MAX)";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Runtime.Serialization.ISerializable).FullName] = "VARBINARY(MAX)";
+
+        // Miscellaneous mapping
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Guid).FullName]   = "UNIQUEIDENTIFIER";
+        LinqToSqlSchemaGenerator.dataTypes[typeof(System.Object).FullName] = "SQL_VARIANT";
+
+        // TODO: Map builtin C# types (i.e. int) in addition to CLR types (System.Int32)
+        // TODO: Map columns to ROWVERSION data type
+    }
+
+    /// <summary>
+    /// Creates a new instance of <see cref="LinqToSqlSchemaGenerator"/>
+    /// </summary>
+    public LinqToSqlSchemaGenerator()
+    {
+        this.DeleteProcedureTemplate = new LinqToSqlDeleteProcedureTemplate();
+        this.ForeignKeyTemplate = new LinqToSqlForeignKeyTemplate();
+        this.InsertProcedureTemplate = new LinqToSqlInsertProcedureTemplate();
+        this.PrimaryKeyTemplate = new LinqToSqlPrimaryKeyTemplate();
+        this.TableTemplate = new LinqToSqlTableTemplate();
+        this.UpdateProcedureTemplate = new LinqToSqlUpdateProcedureTemplate();
+    }
+
+    /// <summary>
+    /// LINQ to SQL database object for which SQL schema will be generated
+    /// </summary>
+    public Database Database { get; set; }
+
+    /// <summary>
+    /// Name of the LINQ to SQL .dbml file
+    /// </summary>
+    public string DbmlFile { get; set; }
+
+    /// <summary>
+    /// Gets or sets the template that will be used to generate delete procedure SQL scripts
+    /// </summary>
+    public LinqToSqlDeleteProcedureTemplate DeleteProcedureTemplate { get; set; }
+
+    /// <summary>
+    /// Gets or sets the template that will be used to generate foreign key SQL scripts
+    /// </summary>
+    public LinqToSqlForeignKeyTemplate ForeignKeyTemplate { get; set; }
+
+    /// <summary>
+    /// Gets or sets the template that will be used to generate insert procedure SQL scripts
+    /// </summary>
+    public LinqToSqlInsertProcedureTemplate InsertProcedureTemplate { get; set; }
+
+    /// <summary>
+    /// Gets or sets the template that will be used to generate primary key SQL scripts
+    /// </summary>
+    public LinqToSqlPrimaryKeyTemplate PrimaryKeyTemplate { get; set; }
+
+    /// <summary>
+    /// Gets or sets the template that will be used to generate create table SQL scripts
+    /// </summary>
+    public LinqToSqlTableTemplate TableTemplate { get; set; }
+
+    /// <summary>
+    /// Gets or sets the template that will be used to generate update procedure SQL scripts
+    /// </summary>
+    public LinqToSqlUpdateProcedureTemplate UpdateProcedureTemplate { get; set; }
+
+
+    /// <summary>
+    /// Generates output files
+    /// </summary>
+    protected override void RunCore()
+    {
+        if (this.Database.Table == null)
+        {
+            return;
+        }
+
+        foreach (Table table in this.Database.Table)
+        {
+            // Generate table SQL script
+            this.TableTemplate.Table = table;
+            this.TableTemplate.RenderToFile(table.Name + ".table.sql");
+
+            // Generate primary key SQL script
+            this.PrimaryKeyTemplate.Table = table;
+            this.PrimaryKeyTemplate.RenderToFile(table.Name + "." + this.PrimaryKeyTemplate.ConstraintName + ".pkey.sql");
+
+            // Generate foreign key SQL scripts
+            this.ForeignKeyTemplate.Database = this.Database;
+            this.ForeignKeyTemplate.Table = table;
+            foreach (object item in table.Type.Items)
+            {
+                Association association = item as Association;
+                if (association != null && association.IsForeignKey)
+                {
+                    this.ForeignKeyTemplate.Association = association;
+                    this.ForeignKeyTemplate.RenderToFile(table.Name + "." + this.ForeignKeyTemplate.ConstraintName + ".fkey.sql");
+                }
+            }
+
+            // Generate insert procedure SQL scripts
+            this.InsertProcedureTemplate.Table = table;
+            this.InsertProcedureTemplate.RenderToFile(table.Name + "_Insert.proc.sql");
+
+            // Generate delete procedure SQL scripts
+            this.DeleteProcedureTemplate.Table = table;
+            this.DeleteProcedureTemplate.RenderToFile(table.Name + "_Delete.proc.sql");
+
+            // Generate update procedure SQL scripts
+            this.UpdateProcedureTemplate.Table = table;
+            this.UpdateProcedureTemplate.RenderToFile(table.Name + "_Update.proc.sql");
+        }
+    }
+
+    /// <summary>
+    /// Validates code generation parameters
+    /// </summary>
+    protected override void Validate()
+    {
+        if (this.Database == null)
+        {
+            if (this.DbmlFile == null)
+            {
+                throw new TransformationException("Either DbmlFile or Database property must be assigned");
+            }
+
+            try
+            {
+                this.DbmlFile = TransformationContext.Host.ResolvePath(this.DbmlFile);
+            }
+            catch (System.IO.FileNotFoundException)
+            {
+                throw new TransformationException("DbmlFile property refers to a non-existent file " + this.DbmlFile);
+            }
+
+            this.Database = Database.Load(this.DbmlFile);
+        }
+
+        LinqToSqlSchemaGenerator.MapDatabase(this.Database);
+
+        if (this.DeleteProcedureTemplate == null)
+        {
+            throw new TransformationException("DeleteProcedureTemplate property must be assigned");
+        }
+
+        if (this.ForeignKeyTemplate == null)
+        {
+            throw new TransformationException("ForeignKeyTemplate property must be assigned");
+        }
+
+        if (this.InsertProcedureTemplate == null)
+        {
+            throw new TransformationException("InsertProcedureTemplate property must be assigned");
+        }
+
+        if (this.PrimaryKeyTemplate == null)
+        {
+            throw new TransformationException("PrimaryKeyTemplate property must be assingned");
+        }
+
+        if (this.TableTemplate == null)
+        {
+            throw new TransformationException("TableTemplate property must be assigned");
+        }
+
+        if (this.UpdateProcedureTemplate == null)
+        {
+            throw new TransformationException("UpdateProcedureTemplate property must be assigned");
+        }
+    }
+
+    /// <summary>
+    /// Populates missing database properties of the specified <paramref name="column"/> based on
+    /// properties specified in the model.
+    /// </summary>
+    internal static void MapColumn(Column column)
+    {
+        // If column doesn't specify "Source" 
+        if (string.IsNullOrEmpty(column.Name))
+        {
+            // Use column's "Name"
+            column.Name = column.Member;
+        }
+
+        // If column doesn't specify "Server Data Type"
+        if (string.IsNullOrEmpty(column.DbType))
+        {
+            // Use column's "Type" to determine it
+            column.DbType = LinqToSqlSchemaGenerator.dataTypes[column.Type];
+
+            // If column's "Nullable" property is set to False
+            if (!column.CanBeNull)
+            {
+                column.DbType += " NOT NULL";
+            }
+
+            // If column's "Auto Generated Value" property is set to True
+            if (column.IsDbGenerated)
+            {
+                column.DbType += " IDENTITY";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Populates missing properties in all tables of the specified <paramref name="database"/> 
+    /// based on properties specified in the model.
+    /// </summary>
+    internal static void MapDatabase(Database database)
+    {
+        if (database.Table == null)
+        {
+            return;
+        }
+
+        foreach(Table table in database.Table)
+        {
+            LinqToSqlSchemaGenerator.MapTable(table);
+        }
+    }
+
+    /// <summary>
+    /// Populates missing properties the specified <paramref name="table"/> based 
+    /// on properties specified in the model.
+    /// </summary>
+    internal static void MapTable(Table table)
+    {
+        // If table doesn't specify "Source"
+        if (string.IsNullOrEmpty(table.Name))
+        {
+            // Use the name of its first type
+            table.Name = table.Type.Name;
+        }
+
+        LinqToSqlSchemaGenerator.MapType(table.Type);
+    }
+
+    /// <summary>
+    /// Populates missing properties in all child types and columns of the specified 
+    /// <paramref name="type"/> based on properties specified in the model.
+    /// </summary>
+    internal static void MapType(Type type)
+    {
+        if (type.Items == null)
+        {
+            return;
+        }
+
+        foreach (object item in type.Items)
+        {
+            Column column = item as Column;
+            if (column != null)
+            {
+                LinqToSqlSchemaGenerator.MapColumn(column);
+                continue;
+            }
+
+            Type derivedType = item as Type;
+            if (derivedType != null)
+            {
+                LinqToSqlSchemaGenerator.MapType(derivedType);
+                continue;
+            }
+        }
+    }
+}
+#>

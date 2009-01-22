@@ -1,0 +1,186 @@
+﻿<#+
+// <copyright file="TestRunner.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Executes T4 unit tests
+/// </summary>
+public static class TestRunner
+{
+	private static System.CodeDom.Compiler.CompilerErrorCollection errors;
+	private static System.Text.StringBuilder log;
+
+    /// <summary>
+    /// Runs all tests defined in the currently running T4 template.
+    /// </summary>
+    public static void RunTests()
+    {
+		TestRunner.errors = new System.CodeDom.Compiler.CompilerErrorCollection();
+		TestRunner.log = new System.Text.StringBuilder();
+		try
+		{
+			RunTests(TransformationContext.Transformation.GetType());
+			System.Reflection.Assembly testAssembly = TransformationContext.Transformation.GetType().Assembly;
+			foreach (System.Type type in testAssembly.GetExportedTypes())
+			{
+				if (type.GetCustomAttributes(typeof(TestClassAttribute), false).Length > 0)
+				{
+					RunTests(type);
+				}
+			}
+		}
+		finally
+		{
+		    // Clear any errors reported by a <see cref="Generator"/> class under test
+		    TransformationContext.ClearErrors();
+
+		    // Report test execution errors
+            TransformationContext.ReportErrors(TestRunner.errors);
+            TransformationContext.Host.SetFileExtension(".log");
+            TransformationContext.Transformation.Write(log.ToString());
+		}
+    }
+
+    /// <summary>
+    /// Runs all tests defined in the specified test class
+    /// </summary>
+    /// <param name="testClass">
+    /// <see cref="System.Type"/> of the class that contains methods marked with 
+    /// <see cref="TestMethodAttribute"/>.
+    /// </param>
+    private static void RunTests(System.Type testClass)
+    {
+        // Collect information about test methods
+        System.Collections.Generic.List<System.Reflection.MethodInfo> testInitializeMethods = new System.Collections.Generic.List<System.Reflection.MethodInfo>();
+        System.Collections.Generic.List<System.Reflection.MethodInfo> testCleanupMethods = new System.Collections.Generic.List<System.Reflection.MethodInfo>();
+        System.Collections.Generic.List<System.Reflection.MethodInfo> testMethods = new System.Collections.Generic.List<System.Reflection.MethodInfo>();
+        int maxTestMethodNameLength = 0;
+        foreach (System.Reflection.MethodInfo method in testClass.GetMethods())
+        {
+            if (method.GetCustomAttributes(typeof(TestMethodAttribute), false).Length > 0)
+            {
+                testMethods.Add(method);
+                maxTestMethodNameLength = System.Math.Max(maxTestMethodNameLength, method.Name.Length);
+            }
+            else if (method.GetCustomAttributes(typeof(TestInitializeAttribute), false).Length > 0)
+            {
+                testInitializeMethods.Add(method);
+            }
+            else if (method.GetCustomAttributes(typeof(TestCleanupAttribute), false).Length > 0)
+            {
+                testCleanupMethods.Add(method);
+            }
+        }
+
+        // Run tests
+        foreach (System.Reflection.MethodInfo testMethod in testMethods)
+        {
+            TestRunner.log.AppendFormat("{0} - ", testMethod.Name.PadRight(maxTestMethodNameLength));
+            bool passed = true;
+            object testObject = Activator.CreateInstance(testClass);
+            try
+            {
+                foreach (System.Reflection.MethodInfo testInitializeMethod in testInitializeMethods)
+                {
+                    passed &= InvokeTestMethod(testInitializeMethod, testObject);
+                }
+
+                passed &= InvokeTestMethod(testMethod, testObject);
+            }
+            finally
+            {
+                foreach (System.Reflection.MethodInfo testCleanupMethod in testCleanupMethods)
+                {
+                    passed &= InvokeTestMethod(testCleanupMethod, testObject);
+                }
+            }
+
+            if (passed)
+            {
+                TestRunner.log.AppendLine("Passed.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Runs the specified test method
+    /// </summary>
+    /// <param name="method">
+    /// <see cref="MethodInfo"/> object representing a method marked with 
+    /// <see cref="TestMethodAttribute"/>.
+    /// </param>
+    /// <param name="testObject">
+    /// Instance of a class marked with <see cref="TestClassAttribute"/>
+    /// </param>
+    /// <returns>
+    /// <code>True</code> if method completed with expected results
+    /// -or-
+    /// <code>False</code> if method completed with unexpected results.
+    /// </returns>
+    private static bool InvokeTestMethod(System.Reflection.MethodInfo method, object testObject)
+    {
+        ExpectedExceptionAttribute[] expectedExceptions = (ExpectedExceptionAttribute[])
+            method.GetCustomAttributes(typeof(ExpectedExceptionAttribute), false);
+        try
+        {
+            method.Invoke(testObject, null);
+            if (expectedExceptions.Length > 0)
+            {
+                // Report test failure
+                System.CodeDom.Compiler.CompilerError error = new System.CodeDom.Compiler.CompilerError();
+                error.ErrorText = string.Format(
+                    "{0}.{1} was expected to throw {2}.",
+                    method.DeclaringType.Name,
+                    method.Name,
+                    expectedExceptions[0].ExceptionType.Name);
+                TestRunner.errors.Add(error);
+
+                TestRunner.log.AppendFormat("Failed. {0} was expected.", expectedExceptions[0].ExceptionType.Name);
+                TestRunner.log.AppendLine();
+                return false;
+            }
+        }
+        catch (System.Reflection.TargetInvocationException exception)
+        {
+            foreach (ExpectedExceptionAttribute expectedException in expectedExceptions)
+            {
+                if (exception.InnerException.GetType() == expectedException.ExceptionType)
+                {
+                    return true;
+                }
+            }
+
+            // Find stack frame of the method
+            System.Diagnostics.StackTrace stackTrace = new System.Diagnostics.StackTrace(exception.InnerException, true);
+            System.Diagnostics.StackFrame stackFrame = null;
+            for (int i = 0; i < stackTrace.FrameCount; i++)
+            {
+                stackFrame = stackTrace.GetFrame(i);
+                if (stackFrame.GetMethod() == method)
+                {
+                    break;
+                }
+            }
+
+            // Report test failure
+            System.CodeDom.Compiler.CompilerError error = new System.CodeDom.Compiler.CompilerError();
+            error.ErrorText = string.Format(
+                "{0} has thrown {1}: {2}",
+                stackFrame.GetMethod().Name,
+                exception.InnerException.GetType().Name,
+                exception.InnerException.Message);
+            error.FileName = stackFrame.GetFileName();
+            error.Line = stackFrame.GetFileLineNumber();
+            error.IsWarning = exception.InnerException is AssertInconclusiveException;
+            TestRunner.errors.Add(error);
+
+            TestRunner.log.Append("Failed. ");
+            TestRunner.log.AppendLine(exception.InnerException.ToString());
+            return false;
+        }
+
+        return true;
+    }
+}
+#>

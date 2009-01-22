@@ -1,0 +1,9 @@
+﻿<#@ assembly name="NetSqlAzMan.dll" #>
+<#@ include file="T4Toolbox\NetSqlAzMan\NetSqlAzManApplicationEnumTemplate.tt" #>
+<#@ include file="T4Toolbox\NetSqlAzMan\NetSqlAzManStoreClassTemplate.tt" #>
+<#@ include file="T4Toolbox\NetSqlAzMan\NetSqlAzManWrapperGenerator.tt" #>
+<#
+// <copyright file="NetSqlAzMan.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+#>

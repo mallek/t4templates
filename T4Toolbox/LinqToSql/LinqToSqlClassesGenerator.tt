@@ -1,0 +1,142 @@
+﻿<#+
+// <copyright file="LinqToSqlClassesGenerator.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Generates DataContext and Entity classes from a LINQ to SQL DBML file
+/// </summary>
+public class LinqToSqlClassesGenerator : Generator
+{
+	/// <summary>
+	/// Creates a new instance of <see cref="LinqToSqlClassesGenerator"/>
+	/// </summary>
+	public LinqToSqlClassesGenerator()
+	{
+		this.DataContextTemplate = new LinqToSqlDataContextTemplate();
+		this.EntityClassTemplate = new LinqToSqlEntityClassTemplate();
+	}
+
+	/// <summary>
+	/// LINQ to SQL database object for which entities will be generated
+	/// </summary>
+	public Database Database { get; set; }
+
+	/// <summary>
+	/// Name of the LINQ to SQL .dbml file
+	/// </summary>
+	public string DbmlFile { get; set; }
+
+	/// <summary>
+	/// Gets or sets the template that will be used to generate DataContext class
+	/// </summary>
+	public LinqToSqlDataContextTemplate DataContextTemplate { get; set; }
+
+	/// <summary>
+	/// Gets or sets the template that will be used to generate Entity classes
+	/// </summary>
+	public LinqToSqlEntityClassTemplate EntityClassTemplate { get; set; }
+
+	/// <summary>
+	/// Generates output files
+	/// </summary>
+	protected override void RunCore()
+	{
+		this.RemoveStandardDbmlCodeGeneration();
+
+		this.DataContextTemplate.Database = this.Database;
+		this.DataContextTemplate.RenderToFile(this.Database.Class + ".generated.cs");
+
+		this.EntityClassTemplate.Database = this.Database;
+		foreach (Table table in this.Database.Table)
+		{
+			this.RenderEntityClass(table, table.Type, null);
+		}
+	}
+
+	/// <summary>
+	/// Generates C# entity class for the specified <paramref name="type"/> and all
+	/// of its derived types, recursively.
+	/// </summary>
+	private void RenderEntityClass(Table table, Type type, Type baseType)
+	{
+		this.EntityClassTemplate.Table = table;
+		this.EntityClassTemplate.Type = type;
+		this.EntityClassTemplate.BaseType = baseType;
+		this.EntityClassTemplate.RenderToFile(type.Name + ".generated.cs");
+
+		// If current type has children, derived types
+		if (type.Type1 != null)
+		{
+			foreach (Type childType in type.Type1)
+			{
+				this.RenderEntityClass(table, childType, type);
+			}
+		}
+	}
+
+	/// <summary>
+	/// Validates code generation parameters
+	/// </summary>
+	protected override void Validate()
+	{
+		if (this.DbmlFile == null)
+		{
+			throw new TransformationException("DbmlFile property must be assigned");
+		}
+
+		try
+		{
+			this.DbmlFile = TransformationContext.Host.ResolvePath(this.DbmlFile);
+		}
+		catch (System.IO.FileNotFoundException)
+		{
+			throw new TransformationException("DbmlFile property refers to a non-existent file " + this.DbmlFile);
+		}
+
+		this.Database = Database.Load(this.DbmlFile);
+
+		// If there are no tables defined in the model, initialize the array to avoid checking it for null every time
+		this.Database.Table = this.Database.Table ?? new Table[0];
+
+		// Generate code in default namespace, unless namespaces were specified in the model
+		this.Database.ContextNamespace = this.Database.ContextNamespace ?? TransformationContext.DefaultNamespace;
+		this.Database.EntityNamespace = this.Database.EntityNamespace ?? TransformationContext.DefaultNamespace;
+
+		if (this.DataContextTemplate == null)
+		{
+			throw new TransformationException("GeneratedDataContextTemplate property must be assigned");
+		}
+
+		if (this.EntityClassTemplate == null)
+		{
+			throw new TransformationException("GeneratedTemplate property must be assigned");
+		}
+	}
+
+	/// <summary>
+	/// Removes standard code generation configured for the <see cref="DbmlFile"/>
+	/// </summary>
+	private void RemoveStandardDbmlCodeGeneration()
+	{
+		EnvDTE.ProjectItem dbmlFileItem = TransformationContext.FindProjectItem(this.DbmlFile);
+		if (dbmlFileItem != null)
+		{
+			// Remove MSLinqToSqlGenerator custom tool from the DbmlFile to stop standard code generation
+			EnvDTE.Property customToolProperty = dbmlFileItem.Properties.Item("CustomTool");
+			customToolProperty.Value = string.Empty;
+
+			// Remove previously generated C# classes
+			string designerFile = System.IO.Path.GetFileNameWithoutExtension(this.DbmlFile) + ".designer.cs";
+			foreach (EnvDTE.ProjectItem dbmlChildItem in dbmlFileItem.ProjectItems)
+			{
+				if (dbmlChildItem.Name == designerFile)
+				{
+					dbmlChildItem.Remove();
+					break;
+				}
+			}
+		}
+	}
+}
+#>

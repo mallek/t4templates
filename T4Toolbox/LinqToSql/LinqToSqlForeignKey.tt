@@ -1,0 +1,86 @@
+﻿<#+
+// <copyright file="LinqToSqlForeignKey.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Generates a "alter table/add constraint/foreign key" SQL statement based on a LINQ to SQL association
+/// </summary>
+public class LinqToSqlForeignKeyTemplate: LinqToSqlTableBaseTemplate
+{
+
+	/// <summary>
+	/// LINQ to SQL Association object that represents a foreign key
+	/// </summary>
+	public Association Association { get; set; }
+
+	/// <summary>
+	/// LINQ to SQL Database object
+	/// </summary>
+	public Database Database { get; set; }
+
+	/// <summary>
+	/// Gets name of the foreign key constraint for the given <see cref="Table"/>
+	/// </summary>
+	public string ConstraintName
+	{
+		get
+		{
+			if (this.Association == null)
+			{
+				throw new InvalidOperationException("Association property is not assigned");
+			}
+
+			return "FK_" + this.Association.Name; 
+		}
+	}
+
+	/// <summary>
+	/// Generates SQL script
+	/// </summary>
+	protected override void RenderCore()
+	{
+#>
+ALTER TABLE <#= this.Table.Name #>
+	ADD CONSTRAINT <#= this.ConstraintName #>
+	FOREIGN KEY (<#= this.Association.ThisKey #>)
+	REFERENCES <#= this.ReferencedTable.Name #> (<#= this.Association.OtherKey #>);
+<#+
+	}
+
+	/// <summary>
+	/// Validates template parameters
+	/// </summary>
+	protected override void Validate()
+	{
+		base.Validate();
+
+		if (this.Association == null)
+		{
+			throw new TransformationException("Association property must be assigned");
+		}
+
+		if (!this.Association.IsForeignKey)
+		{
+			throw new TransformationException(
+				string.Format("Association {0} is not a foreign key", this.Association.Name));
+		}
+
+		if (this.Database == null)
+		{
+			throw new TransformationException("Database property must be assigned");
+		}
+	}
+
+	private Table ReferencedTable
+	{
+		get
+		{
+			// Can't use extension method syntax without importing the namespace
+			return System.Linq.Enumerable.First(
+				this.Database.Table,
+				table => table.Type.Name == this.Association.Type); 
+		}
+	}
+}
+#>

@@ -1,0 +1,53 @@
+﻿<#+
+// <copyright file="LinqToSqlDeleteProcedure.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Generates a "create procedure" SQL statement based on a LINQ to SQL table
+/// </summary>
+public class LinqToSqlDeleteProcedureTemplate: LinqToSqlProcedureBaseTemplate
+{
+	/// <summary>
+	/// Generates SQL script
+	/// </summary>
+	protected override void RenderCore()
+	{
+#>
+CREATE PROCEDURE <#= this.Table.Name #>_Delete
+<#+ this.WriteParameterDeclarations(); #>
+AS
+BEGIN
+	DELETE FROM <#= this.Table.Name #>
+	WHERE 
+		<#+ this.WriteWhereClause(); #>
+END
+<#+
+	}
+
+	/// <summary>
+	/// Generates parameter declarations for the delete stored procedure
+	/// </summary>
+	private void WriteParameterDeclarations()
+	{
+		this.PushIndent("\t");
+		int parameterIndex = 0;
+		foreach (object item in this.Table.Type.Items)
+		{
+			Column column = item as Column;
+			if (column != null && column.IsPrimaryKey)
+			{
+				if (parameterIndex > 0)
+				{
+					this.WriteLine(",");
+				}
+
+				this.Write("@{0} {1}", column.Name, GetParameterDataType(column));
+				parameterIndex++;
+			}
+		}
+		this.WriteLine(string.Empty);
+		this.PopIndent();
+	}
+}
+#>

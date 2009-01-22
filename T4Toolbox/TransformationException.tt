@@ -1,0 +1,78 @@
+﻿<#+
+// <copyright file="TransformationException.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Represents errors that occur during template rendering
+/// </summary>
+/// <remarks>
+/// Throw this exception when detecting expected error conditions in your 
+/// template code. <see cref="Template.RenderCore"/> converts all exceptions 
+/// of this type into user-friendly "compiler" errors. Exceptions of other 
+/// types will be reported as run time errors, with multiple lines of exception 
+/// information and stack dump.
+/// </remarks>
+[Serializable]
+public class TransformationException : InvalidOperationException
+{
+    /// <summary>
+    /// Initializes a new instance of <see cref="TransformationException"/> class.
+    /// </summary>
+    public TransformationException()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="TransformationException"/> class with 
+    /// a specified error message.
+    /// </summary>
+    /// <param name="message">
+    /// The message that describes the error.
+    /// </param>
+    public TransformationException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TransformationException"/> class 
+    /// with a specified error message and a reference to the inner exception 
+    /// that is the cause of this exception.
+    /// </summary>
+    /// <param name="message">
+    /// The message that describes the error.
+    /// </param>
+    /// <param name="innerException">
+    /// The exception that is the cause the error, or a null reference (Nothing 
+    /// in Visual Basic) if no inner exception is specified.
+    /// </param>
+    public TransformationException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TransformationException"/> class 
+    /// with serialized data.
+    /// </summary>
+    /// <param name="info">
+    /// The <see cref="System.Runtime.Serialization.SerializationInfo"/> that holds the 
+    /// serialized object data about the exception being thrown. 
+    /// </param>
+    /// <param name="context">
+    /// The <see cref="System.Runtime.Serialization.StreamingContext"/> that contains 
+    /// contextual information about the source or destination.
+    /// </param>
+    /// <remarks>
+    /// This constructor is called during deserialization to reconstitute the 
+    /// exception object transmitted over a stream. 
+    /// </remarks>
+    protected TransformationException(
+		System.Runtime.Serialization.SerializationInfo info, 
+		System.Runtime.Serialization.StreamingContext context)
+        : base(info, context)
+    {
+    }
+}
+#>

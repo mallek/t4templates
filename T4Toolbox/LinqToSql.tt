@@ -1,0 +1,21 @@
+﻿<#@ xsd processor="XsdProcessor" file="%VS90COMNTOOLS%\..\..\Xml\Schemas\DbmlSchema.xsd" #>
+<#@ assembly name="System.Core" #>
+<#@ assembly name="System.Data.Linq" #>
+<#@ assembly name="System.Xml.Linq" #>
+<#@ include file="T4Toolbox\LinqToSql\LinqToSqlClassesGenerator.tt" #>
+<#@ include file="T4Toolbox\LinqToSql\LinqToSqlDataContextTemplate.tt" #>
+<#@ include file="T4Toolbox\LinqToSql\LinqToSqlDeleteProcedure.tt" #>
+<#@ include file="T4Toolbox\LinqToSql\LinqToSqlEntityClassTemplate.tt" #>
+<#@ include file="T4Toolbox\LinqToSql\LinqToSqlForeignKey.tt" #>
+<#@ include file="T4Toolbox\LinqToSql\LinqToSqlInsertProcedure.tt" #>
+<#@ include file="T4Toolbox\LinqToSql\LinqToSqlPrimaryKey.tt" #>
+<#@ include file="T4Toolbox\LinqToSql\LinqToSqlProcedureBase.tt" #>
+<#@ include file="T4Toolbox\LinqToSql\LinqToSqlSchemaGenerator.tt" #>
+<#@ include file="T4Toolbox\LinqToSql\LinqToSqlTable.tt" #>
+<#@ include file="T4Toolbox\LinqToSql\LinqToSqlTableBase.tt" #>
+<#@ include file="T4Toolbox\LinqToSql\LinqToSqlUpdateProcedure.tt" #>
+<#+
+// <copyright file="LinqToSql.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+#>

@@ -1,0 +1,42 @@
+﻿<#+
+// <copyright file="LinqToSqlTable.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Generates a "create table" SQL statement based on LINQ to SQL table
+/// </summary>
+public class LinqToSqlTableTemplate: LinqToSqlTableBaseTemplate
+{
+	/// <summary>
+	/// Generates SQL script
+	/// </summary>
+	protected override void RenderCore()
+	{
+#>
+CREATE TABLE <#= this.Table.Name #>
+(
+<#+
+		int columnIndex = 0;
+		this.PushIndent("\t");
+		foreach(object item in this.Table.Type.Items)
+		{
+			Column column = item as Column;
+			if (column != null)
+			{
+				if (columnIndex > 0)
+				{
+					this.WriteLine(",");
+				}
+				this.Write(column.Name + " " + column.DbType);
+				columnIndex++;
+			}
+		}
+		this.WriteLine(string.Empty);
+		this.PopIndent();
+#>
+);
+<#+
+	}
+}
+#>

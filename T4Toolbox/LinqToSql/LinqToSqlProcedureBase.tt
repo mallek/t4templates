@@ -1,0 +1,76 @@
+﻿<#+
+// <copyright file="LinqToSqlProcedureBase.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Serves as a base class for templates that generate CRUD stored precudures.
+/// </summary>
+public abstract class LinqToSqlProcedureBaseTemplate: LinqToSqlTableBaseTemplate
+{
+	/// <summary>
+	/// Returns SQL data type of a stored procedure parameter for the specified <paramref name="column"/>
+	/// </summary>
+	protected string GetParameterDataType(Column column)
+	{
+		string dataType = column.DbType.ToUpper();
+		dataType = dataType.Replace(" NOT", string.Empty);
+		dataType = dataType.Replace(" NULL", string.Empty);
+		dataType = dataType.Replace(" IDENTITY", string.Empty);
+		return dataType;
+	}
+
+	/// <summary>
+	/// Validates template parameters
+	/// </summary>
+	protected override void Validate()
+	{
+		base.Validate();
+
+		// Determine if this.Table has a primary key
+		bool hasPrimaryKey = false;
+		foreach (object item in this.Table.Type.Items)
+		{
+			Column column = item as Column;
+			if (column != null && column.IsPrimaryKey)
+			{
+				hasPrimaryKey = true;
+				break;
+			}
+		}
+
+		if (!hasPrimaryKey)
+		{
+			throw new TransformationException(string.Format(
+				"Cannot generate stored procedure for {0}. Table doesn't have a primary key.", 
+				this.Table.Name));
+		}
+	}
+
+	/// <summary>
+	/// Generates where clause for UPDATE and DELETE statements
+	/// </summary>
+	protected void WriteWhereClause()
+	{
+		PushIndent("\t\t");
+		int whereIndex = 0;
+		foreach(object item in this.Table.Type.Items)
+		{
+			Column column = item as Column;
+			if (column != null && column.IsPrimaryKey)
+			{
+				if (whereIndex > 0)
+				{
+					this.WriteLine(" AND");
+				}
+
+				this.Write("{0} = @{0}", column.Name);
+				whereIndex++;
+			}
+		}
+
+		this.WriteLine(string.Empty);
+		PopIndent();
+	}
+}
+#>

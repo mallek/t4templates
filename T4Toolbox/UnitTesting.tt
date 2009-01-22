@@ -1,0 +1,10 @@
+<#@ assembly name="Microsoft.VisualStudio.QualityTools.UnitTestFramework" #>
+<#@ import namespace="Microsoft.VisualStudio.TestTools.UnitTesting" #>
+<#@ include file="T4Toolbox\UnitTesting\TestRunner.tt" #>
+<#
+// <copyright file="UnitTesting.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+TestRunner.RunTests();
+#>
