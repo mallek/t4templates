@@ -1,0 +1,190 @@
+﻿<#+
+// <copyright file="NetSqlAzManGenerator.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+public class NetSqlAzManWrapperGenerator : Generator
+{
+	// .Net SQL AzMan Storage
+    private string netSqlAzManConnectionString = string.Empty;
+    private string netSqlAzManStorage = string.Empty;
+    private string netSqlAzManApplication = string.Empty;
+
+	// code generation 
+    private string @namespace = string.Empty;
+
+	// templates
+    private NetSqlAzManApplicationEnumTemplate applicationEnumTemplate = new NetSqlAzManApplicationEnumTemplate();
+    private NetSqlAzManStoreClassTemplate storeClassTemplate = new NetSqlAzManStoreClassTemplate();
+
+	/// <summary>
+	/// Creates a new instance of <see cref="NetSqlAzManWrapperGenerator"/> and initializes
+	/// default code generation parameters.
+	/// </summary>
+    public NetSqlAzManWrapperGenerator()
+    {
+		// Since wrapper class will be rendered to the standard output, use name of the main T4 file as class name.
+		string templateFileName = System.IO.Path.GetFileNameWithoutExtension(TransformationContext.Host.TemplateFile);
+		this.storeClassTemplate.ClassName = NetSqlAzManWrapperGenerator.GetValidName(templateFileName);
+    }
+
+	/// <summary>
+	/// Gets or sets the connection string to the .Net Sql Authorization Manager database which defines the authorization
+	/// store for which the strongly-typed wrapper needs to be generated.
+	/// </summary>
+	/// <remarks>
+	/// You must assign value to this property.
+	/// </remarks>
+    public string NetSqlAzManConnectionString
+    {
+        get { return this.netSqlAzManConnectionString; }
+        set { this.netSqlAzManConnectionString = value; }
+    }
+
+	/// <summary>
+	/// Gets or sets Storage Name in the .Net Sql Authorization Manager database which defines the authorization
+	/// store for which the strongly-typed wrapper needs to be generated.
+	/// </summary>
+	/// <remarks>
+	/// You must assign value to this property.
+	/// </remarks>
+    public string NetSqlAzManStorage
+    {
+        get { return this.netSqlAzManStorage; }
+        set { this.netSqlAzManStorage = value; }
+    }
+
+	/// <summary>
+	/// Gets or sets Application Name in the .Net Sql Authorization Manager database which defines the authorization
+	/// store for which the strongly-typed wrapper needs to be generated.
+	/// </summary>
+	/// <remarks>
+	/// You must assign value to this property.
+	/// </remarks>
+//    public string NetSqlAzManApplication
+//    {
+//        get { return this.netSqlAzManApplication; }
+//        set { this.netSqlAzManApplication = value; }
+//    }
+
+	/// <summary>
+	/// Gets or sets the name of the namespace in which the classes and enumerations
+	/// will be generated.
+	/// </summary>
+	/// <remarks>
+	/// You must assign value to this property.
+	/// </remarks>
+    public string Namespace
+    {
+        get { return this.@namespace; }
+        set { this.@namespace = value; }
+    }
+
+	/// <summary>
+	/// Gets or sets the template that generates enumerated types for security operations 
+	/// in AzMan applications.
+	/// </summary>
+	/// <remarks>
+	/// You can customize generation of enumerated types by replacing the default template
+	/// with your custom version derived from <see cref="NetSqlAzManApplicationEnumTemplate"/>.
+	/// </remarks>
+    public NetSqlAzManApplicationEnumTemplate ApplicationEnumTemplate
+    {
+        get { return this.applicationEnumTemplate; }
+        set { this.applicationEnumTemplate = value; }
+    }
+
+	/// <summary>
+	/// Gets or sets the template that generates authorization store wrapper class.
+	/// </summary>
+	/// <remarks>
+	/// You can customize generation of the wrapper class by replacing the default template
+	/// with your custom version derived from <see cref="NetSqlAzManStoreClassTemplate"/>.
+	/// </remarks>
+    public NetSqlAzManStoreClassTemplate StoreClassTemplate
+    {
+        get { return this.storeClassTemplate; }
+        set { this.storeClassTemplate = value; }
+    }
+
+    /// <summary>
+    /// Generates wrapper class and application enumerations.
+    /// </summary>
+    protected override void RunCore()
+	{
+		NetSqlAzMan.Interfaces.IAzManStorage storage = new NetSqlAzMan.SqlAzManStorage(netSqlAzManConnectionString);
+		storage.OpenConnection();
+		
+		NetSqlAzMan.Interfaces.IAzManStore authorizationStore = storage.GetStore(netSqlAzManStorage);
+
+        try
+        {
+            // Render application enumerations to separate files
+            this.ApplicationEnumTemplate.Namespace = this.Namespace;
+            foreach (NetSqlAzMan.Interfaces.IAzManApplication application in authorizationStore.Applications.Values)
+            {
+				this.ApplicationEnumTemplate.Application = application;
+                this.ApplicationEnumTemplate.RenderToFile(NetSqlAzManWrapperGenerator.GetApplicationEnumName(application.Name) + ".cs");
+            }
+
+            // Render authorization store class to the default output of the code generator
+            this.StoreClassTemplate.AuthorizationStore = authorizationStore;
+            this.StoreClassTemplate.Namespace = this.Namespace;
+            this.StoreClassTemplate.Render();
+        }
+        finally
+        {
+	        storage.CloseConnection();
+        }
+	}
+
+    /// <summary>
+    /// Validates code generation parameters.
+    /// </summary>
+    protected override void Validate()
+    {
+        if (string.IsNullOrEmpty(this.NetSqlAzManConnectionString))
+        {
+            throw new TransformationException("NetSqlAzManConnectionString property must be assigned");
+        }
+
+        if (string.IsNullOrEmpty(this.NetSqlAzManStorage))
+        {
+            throw new TransformationException("NetSqlAzManStorage property must be assigned");
+        }
+
+        if (string.IsNullOrEmpty(this.Namespace))
+        {
+            throw new TransformationException("Namespace property must be assigned");
+        }
+
+        if (this.ApplicationEnumTemplate == null)
+        {
+            throw new TransformationException("ApplicationEnumTemplate property must be assigned");
+        }
+
+        if (this.StoreClassTemplate == null)
+        {
+            throw new TransformationException("StoreClassTemplate property must be assigned");
+        }
+    }
+
+	/// <summary>
+	/// Returns name of an enumeration type that contains all operations defined in the AzMan
+	/// application with the specified <paramref name="applicationName"/>
+	/// </summary>
+	internal static string GetApplicationEnumName(string applicationName)
+	{
+		return NetSqlAzManWrapperGenerator.GetValidName(applicationName) + "Operation";
+	}
+
+	/// <summary>
+	/// Returns a valid C# identifier, or type name based on an operation or application name
+	/// defined by the user in .Net Sql AzMan authorization store.
+	/// </summary>
+    internal static string GetValidName(string actualName)
+	{
+		return actualName.Replace(" ", string.Empty);
+	}
+}
+#>

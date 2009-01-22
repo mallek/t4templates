@@ -1,0 +1,170 @@
+﻿<#+
+// <copyright file="AzManGenerator.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+public class AzManWrapperGenerator : Generator
+{
+    private string azManXmlFile = string.Empty;
+    private string @namespace = string.Empty;
+    private AzManApplicationEnumTemplate applicationEnumTemplate = new AzManApplicationEnumTemplate();
+    private AzManStoreClassTemplate storeClassTemplate = new AzManStoreClassTemplate();
+
+	/// <summary>
+	/// Creates a new instance of <see cref="AzManWrapperGenerator"/> and initializes
+	/// default code generation parameters.
+	/// </summary>
+    public AzManWrapperGenerator()
+    {
+		// Since wrapper class will be rendered to the standard output, use name of the main T4 file as class name.
+		string templateFileName = System.IO.Path.GetFileNameWithoutExtension(TransformationContext.Host.TemplateFile);
+		this.storeClassTemplate.ClassName = AzManWrapperGenerator.GetValidName(templateFileName);
+    }
+
+	/// <summary>
+	/// Gets or sets the name of the XML file which defines the AzMan authorization
+	/// store for which the strongly-typed wrapper needs to be generated.
+	/// </summary>
+	/// <remarks>
+	/// You must assign value to this property. It supports relative and absolute paths.
+	/// </remarks>
+    public string AzManXmlFile
+    {
+        get { return this.azManXmlFile; }
+        set { this.azManXmlFile = value; }
+    }
+
+	/// <summary>
+	/// Gets or sets the name of the namespace in which the classes and enumerations
+	/// will be generated.
+	/// </summary>
+	/// <remarks>
+	/// You must assign value to this property.
+	/// </remarks>
+    public string Namespace
+    {
+        get { return this.@namespace; }
+        set { this.@namespace = value; }
+    }
+
+	/// <summary>
+	/// Gets or sets the template that generates enumerated types for security operations 
+	/// in AzMan applications.
+	/// </summary>
+	/// <remarks>
+	/// You can customize generation of enumerated types by replacing the default template
+	/// with your custom version derived from <see cref="AzManApplicationEnumTemplate"/>.
+	/// </remarks>
+    public AzManApplicationEnumTemplate ApplicationEnumTemplate
+    {
+        get { return this.applicationEnumTemplate; }
+        set { this.applicationEnumTemplate = value; }
+    }
+
+	/// <summary>
+	/// Gets or sets the template that generates authorization store wrapper class.
+	/// </summary>
+	/// <remarks>
+	/// You can customize generation of the wrapper class by replacing the default template
+	/// with your custom version derived from <see cref="AzManStoreClassTemplate"/>.
+	/// </remarks>
+    public AzManStoreClassTemplate StoreClassTemplate
+    {
+        get { return this.storeClassTemplate; }
+        set { this.storeClassTemplate = value; }
+    }
+
+    /// <summary>
+    /// Generates wrapper class and application enumerations.
+    /// </summary>
+    protected override void RunCore()
+	{
+        Microsoft.Interop.Security.AzRoles.AzAuthorizationStore authorizationStore = new Microsoft.Interop.Security.AzRoles.AzAuthorizationStore();
+        try
+        {
+            authorizationStore.Initialize(0, "msxml://" + this.AzManXmlFile, null);
+
+            // Render application enumerations to separate files
+            this.ApplicationEnumTemplate.Namespace = this.Namespace;
+            foreach (Microsoft.Interop.Security.AzRoles.IAzApplication application in authorizationStore.Applications)
+            {
+                try
+                {
+                    this.ApplicationEnumTemplate.Application = application;
+                    this.ApplicationEnumTemplate.RenderToFile(AzManWrapperGenerator.GetApplicationEnumName(application.Name) + ".cs");
+                }
+                finally
+                {
+                    this.ApplicationEnumTemplate.Application = null;
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(application);
+                }
+            }
+
+            // Render authorization store class to the default output of the code generator
+            this.StoreClassTemplate.AuthorizationStore = authorizationStore;
+            this.StoreClassTemplate.Namespace = this.Namespace;
+            this.StoreClassTemplate.Render();
+        }
+        finally
+        {
+            this.StoreClassTemplate.AuthorizationStore = null;
+            System.Runtime.InteropServices.Marshal.ReleaseComObject(authorizationStore);
+        }
+	}
+
+    /// <summary>
+    /// Validates code generation parameters.
+    /// </summary>
+    protected override void Validate()
+    {
+        if (string.IsNullOrEmpty(this.AzManXmlFile))
+        {
+            throw new TransformationException("AzManXmlFile property must be assigned");
+        }
+        
+		try
+		{
+            this.AzManXmlFile = TransformationContext.Host.ResolvePath(this.AzManXmlFile);
+		}
+		catch (System.IO.FileNotFoundException e)
+		{
+			throw new TransformationException(
+                string.Format("Cannot find file specified in AzManXmlFile property: {0}", this.AzManXmlFile),
+				e);
+		}        
+
+        if (string.IsNullOrEmpty(this.Namespace))
+        {
+            throw new TransformationException("Namespace property must be assigned");
+        }
+
+        if (this.ApplicationEnumTemplate == null)
+        {
+            throw new TransformationException("ApplicationEnumTemplate property must be assigned");
+        }
+
+        if (this.StoreClassTemplate == null)
+        {
+            throw new TransformationException("StoreClassTemplate property must be assigned");
+        }
+    }
+
+	/// <summary>
+	/// Returns name of an enumeration type that contains all operations defined in the AzMan
+	/// application with the specified <paramref name="applicationName"/>
+	/// </summary>
+	internal static string GetApplicationEnumName(string applicationName)
+	{
+		return AzManWrapperGenerator.GetValidName(applicationName) + "Operation";
+	}
+
+	/// <summary>
+	/// Returns a valid C# identifier, or type name based on an operation or application name
+	/// defined by the user in AzMan authorization store.
+	/// </summary>
+    internal static string GetValidName(string actualName)
+	{
+		return actualName.Replace(" ", string.Empty);
+	}
+}
+#>

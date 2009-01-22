@@ -1,0 +1,111 @@
+﻿<#+
+// <copyright file="LinqToSqlInsertProcedure.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Generates a "create procedure" SQL statement based on a LINQ to SQL table
+/// </summary>
+public class LinqToSqlInsertProcedureTemplate: LinqToSqlProcedureBaseTemplate
+{
+	/// <summary>
+	/// Generates SQL script
+	/// </summary>
+	protected override void RenderCore()
+	{
+#>
+CREATE PROCEDURE <#= this.Table.Name #>_Insert
+<#+ this.WriteParameterDeclarations(); #>
+AS
+BEGIN
+	INSERT INTO <#= this.Table.Name #>
+	(
+		<#+ this.WriteInsertClause(); #>
+	)
+	VALUES
+	(
+		<#+ this.WriteValuesClause(); #>
+	)
+END
+<#+
+	}
+
+	/// <summary>
+	/// Writes stored procedure parameter declarations for all columns
+	/// </summary>
+	private void WriteParameterDeclarations()
+	{
+		this.PushIndent("\t");
+		int parameterIndex = 0;
+		foreach (object item in this.Table.Type.Items)
+		{
+			Column column = item as Column;
+			if (column != null)
+			{
+				if (parameterIndex > 0)
+				{
+					this.WriteLine(",");
+				}
+
+				this.Write("@{0} {1}", column.Name, this.GetParameterDataType(column));
+				parameterIndex++;
+			}
+		}
+
+		this.WriteLine(string.Empty);
+		PopIndent();
+	}
+
+	/// <summary>
+	/// Writes column list of the insert statement
+	/// </summary>
+	private void WriteInsertClause()
+	{
+		this.PushIndent("\t\t");
+		int columnIndex = 0;
+		foreach (object item in this.Table.Type.Items)
+		{
+			Column column = item as Column;
+			if (column != null)
+			{
+				if (columnIndex > 0)
+				{
+					this.WriteLine(",");
+				}
+
+				this.Write(column.Name);
+				columnIndex++;
+			}
+		}
+
+		this.WriteLine(string.Empty);
+		this.PopIndent();
+	}
+
+	/// <summary>
+	/// Writes value list of the insert statement
+	/// </summary>
+	private void WriteValuesClause()
+	{
+		this.PushIndent("\t\t");
+		int columnIndex = 0;
+		foreach (object item in this.Table.Type.Items)
+		{
+			Column column = item as Column;
+			if (column != null)
+			{
+				if (columnIndex > 0)
+				{
+					this.WriteLine(",");
+				}
+
+				this.Write("@" + column.Name);
+				columnIndex++;
+			}
+		}
+
+		this.WriteLine(string.Empty);
+		this.PopIndent();
+	}
+}
+#>

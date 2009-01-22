@@ -1,0 +1,42 @@
+﻿<#+
+// <copyright file="LinqToSqlTableBase.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Serves as a base class for templates based on LINQ to SQL a Table object
+/// </summary>
+public abstract class LinqToSqlTableBaseTemplate: Template
+{
+	/// <summary>
+	/// Gets or sets LINQ to SQL table
+	/// </summary>
+	/// <value>
+	/// Object of type Table which was generated from DbmlSchema.xsd using xsd custom directive.
+	/// </value>
+	public Table Table { get; set; }
+
+	/// <summary>
+	/// Validates template parameters
+	/// </summary>
+	protected override void Validate()
+	{
+		if (this.Table == null)
+		{
+			throw new TransformationException("Table property must be assigned");
+		}
+
+		if (this.Table.Type == null)
+		{
+			throw new TransformationException(
+				string.Format("Table {0} is invalid (Table.Type is null)", this.Table.Name));
+		}
+
+		if (this.Table.Type.Items == null)
+		{
+			throw new TransformationException(
+				string.Format("Table {0} is invalid (Table.Type.Items is null)", this.Table.Name));
+		}
+	}
+}
+#>

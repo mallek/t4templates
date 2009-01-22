@@ -1,0 +1,60 @@
+﻿<#+
+// <copyright file="LinqToSqlPrimaryKey.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Generates a "alter table/add constraint/primary key" SQL statement based on a LINQ to SQL table
+/// </summary>
+public class LinqToSqlPrimaryKeyTemplate: LinqToSqlTableBaseTemplate
+{
+	/// <summary>
+	/// Gets name of the primary key constraint for the given <see cref="Table"/>
+	/// </summary>
+	public string ConstraintName
+	{
+		get
+		{
+			if (this.Table == null)
+			{
+				throw new InvalidOperationException("Table property is not assigned");
+			}
+
+			return "PK_" + this.Table.Member; 
+		}
+	}
+
+	/// <summary>
+	/// Generates SQL script
+	/// </summary>
+	protected override void RenderCore()
+	{
+#>
+ALTER TABLE <#= this.Table.Name #>
+	ADD CONSTRAINT <#= this.ConstraintName #>
+	PRIMARY KEY CLUSTERED (<#= this.PrimaryKeyColumns() #>);
+<#+
+	}
+
+	/// <summary>
+	/// Returns a comma-separated list of columns in the primary key of the <see cref="Table"/>
+	/// </summary>
+	private string PrimaryKeyColumns()
+	{
+		string result = string.Empty;
+		foreach(object item in this.Table.Type.Items)
+		{
+			Column column = item as Column;
+			if (column != null && column.IsPrimaryKey)
+			{
+				if (result.Length > 0)
+				{
+					result += ", ";
+				}
+				result += column.Name;
+			}
+		}
+		return result;
+	}
+}
+#>

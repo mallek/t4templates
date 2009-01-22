@@ -1,0 +1,149 @@
+﻿<#+
+// <copyright file="Template.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Abstract base class for nested template classes.
+/// </summary>
+public abstract class Template : Microsoft.VisualStudio.TextTemplating.TextTransformation
+{
+    /// <summary>
+    /// Stores the value that determines whether this <see cref="Template"/> will be rendered.
+    /// </summary>
+    private bool enabled = true;
+
+    /// <summary>
+    /// Gets or sets value that determines whether this <see cref="Template"/> will be
+    /// rendered.
+    /// </summary>
+    /// <remarks>
+    /// This property allows users of complex code generators to turn off generation of
+    /// a particular output type without having to reimplement the <see cref="Generator"/>
+    /// </remarks>
+    public bool Enabled 
+    { 
+        get { return this.enabled; }
+        set { this.enabled = value; }
+    }
+
+    /// <summary>
+    /// Gets the collection of errors that occurred during template rendering.
+    /// </summary>
+    /// <remarks>
+    /// Use this property when testing error handling logic of your template.
+    /// </remarks>
+    public new System.CodeDom.Compiler.CompilerErrorCollection Errors
+    {
+        get { return base.Errors; }
+    }
+
+    /// <summary>
+    /// Adds a new error to the list of <see cref="Errors"/> produced by the current template rendering.
+    /// </summary>
+    /// <param name="format">
+    /// <see cref="System.String.Format"/> string of the error message.
+    /// </param>
+    /// <param name="args">
+    /// An array of one or more <paramref name="format"/> arguments.
+    /// </param>
+    public void Error(string format, params object[] args)
+    {
+        base.Error(string.Format(format, args));
+    }
+
+    /// <summary>
+    /// Renders the template and appends its output to the output of the entire text transformation
+    /// </summary>
+    public void Render()
+    {
+        if (this.Enabled)
+        {
+            string output = this.TransformText();
+            TransformationContext.ReportErrors(this.Errors);
+            TransformationContext.Transformation.WriteLine(output);
+        }
+    }
+
+    /// <summary>
+    /// Renders the template and saves its output to the specified file.
+    /// </summary>
+    /// <param name="fileName">
+    /// Name of the output file
+    /// </param>
+    public void RenderToFile(string fileName)
+    {
+        if (this.Enabled)
+        {
+            string output = this.TransformText();
+            TransformationContext.ReportErrors(this.Errors);
+            TransformationContext.SaveOutputToFile(fileName, output);
+        }
+    }
+
+    /// <summary>
+    /// Renders the template
+    /// </summary>
+    /// <returns>
+    /// Output produced by the template
+    /// </returns>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Advanced)]
+    public sealed override string TransformText()
+    {
+        this.Errors.Clear();
+
+        this.GenerationEnvironment.Remove(0, this.GenerationEnvironment.Length);
+        try
+        {
+            this.Validate();
+            if (!this.Errors.HasErrors)
+            {
+                this.RenderCore();
+            }
+        }
+        catch (TransformationException e)
+        {
+            this.Error(e.Message);
+        }
+
+        return this.GenerationEnvironment.ToString();
+    }
+
+    /// <summary>
+    /// Adds a new warning to the list of <see cref="Errors"/> produced by the current template rendering.
+    /// </summary>
+    /// <param name="format">
+    /// <see cref="System.String.Format"/> string of the warning message.
+    /// </param>
+    /// <param name="args">
+    /// An array of one or more <paramref name="format"/> arguments.
+    /// </param>
+    public void Warning(string format, params object[] args)
+    {
+        base.Warning(string.Format(format, args));
+    }
+
+    /// <summary>
+    /// When overridden in a derived class, generates output of the template
+    /// </summary>
+    /// <remarks>
+    /// Override this method in derived classes to implement code generation logic
+    /// of this <see cref="Template"/>. Note that this method will not be executed
+    /// if <see cref="Validate"/> method produces one or more <see cref="Errors"/>.
+    /// </remarks>
+    protected abstract void RenderCore();
+
+    /// <summary>
+    /// When overridden in a derived class, validates parameters of the template
+    /// </summary>
+    /// <remarks>
+    /// Override this method in derived classes to validate required and optional
+    /// parameters of this <see cref="Template"/>. Call <see cref="Error"/>, <see cref="Warning"/> 
+    /// methods or throw <see cref="TransformationException"/> to report errors.
+    /// </remarks>
+    protected virtual void Validate()
+    {
+        // This method is intentionally left blank
+    }
+}
+#>

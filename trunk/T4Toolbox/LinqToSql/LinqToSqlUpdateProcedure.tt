@@ -1,0 +1,82 @@
+﻿<#+
+// <copyright file="LinqToSqlUpdateProcedure.tt" company="T4 Toolbox Team">
+//  Copyright © T4 Toolbox Team. All Rights Reserved.
+// </copyright>
+
+/// <summary>
+/// Generates a "create procedure" SQL statement based on a LINQ to SQL table
+/// </summary>
+public class LinqToSqlUpdateProcedureTemplate: LinqToSqlProcedureBaseTemplate
+{
+	/// <summary>
+	/// Generates SQL script
+	/// </summary>
+	protected override void RenderCore()
+	{
+#>
+CREATE PROCEDURE <#= this.Table.Name #>_Update
+<#+ this.WriteParameterDeclarations(); #>
+AS
+BEGIN
+	UPDATE <#= this.Table.Name #>
+	SET
+		<#+ this.WriteSetClause(); #>
+	WHERE 
+		<#+ this.WriteWhereClause(); #>
+END
+<#+
+	}
+
+	/// <summary>
+	/// Writes stored procedure parameter declarations for all columns of the 
+	/// specified table.
+	/// </summary>
+	private void WriteParameterDeclarations()
+	{
+		this.PushIndent("\t");
+		int parameterIndex = 0;
+		foreach (object item in this.Table.Type.Items)
+		{
+			Column column = item as Column;
+			if (column != null)
+			{
+				if (parameterIndex > 0)
+				{
+					this.WriteLine(",");
+				}
+
+				this.Write("@{0} {1}", column.Name, GetParameterDataType(column));
+				parameterIndex++;
+			}
+		}
+
+		this.WriteLine(string.Empty);
+		this.PopIndent();
+	}
+
+	/// <summary>
+	/// Writes set clause of the update statement.
+	/// </summary>
+	private void WriteSetClause()
+	{
+		this.PushIndent("\t\t");
+		int setIndex = 0;
+		foreach(object item in this.Table.Type.Items)
+		{
+			Column column = item as Column;
+			if (column != null && !column.IsPrimaryKey)
+			{
+				if (setIndex > 0)
+				{
+					this.WriteLine(",");
+				}
+				this.Write("{0} = @{0}", column.Name);
+				setIndex++;
+			}
+		}
+
+		this.WriteLine(string.Empty);
+		this.PopIndent();
+	}
+}
+#>
