@@ -1,0 +1,157 @@
+﻿	<#+
+// <copyright file="SubSonicClass.tt" company="">
+//  Copyright © . All Rights Reserved.
+// </copyright>
+
+public class SubSonicClass : Template
+{
+    private string _Namespace;
+    private string _TableName;
+    private DataTable _Columns;
+    private DataTable _ForeignKeys;
+    
+    public string Namespace
+    {
+        get { return _Namespace; }
+        set { _Namespace = value; }
+    }
+	
+    public string TableName
+    {
+        get { return _TableName; }
+        set { _TableName = value; }
+    }
+	
+    public DataTable Columns
+    {
+        get { return _Columns; }
+        set { _Columns = value; }
+    }
+
+    public DataTable ForeignKeys
+    {
+        get { return _ForeignKeys; }
+        set { _ForeignKeys = value; }
+    }
+	
+	protected override void RenderCore()
+	{
+#>
+using System;
+using SubSonic.Linq;
+using System.Linq;
+using System.ComponentModel;
+
+namespace <#=this.Namespace #>
+{
+    /// <summary>
+    /// A class which represents the <#=this.TableName #> table in the <#=DatabaseManager.DatabaseName #> Database.
+    /// This class is queryable through <#=DatabaseManager.DatabaseName #>.DB.<#=this.TableName #>
+    /// </summary>
+	public partial class <#=this.TableName #>: INotifyPropertyChanging, INotifyPropertyChanged
+	{
+	    public <#=this.TableName #>(){
+	        OnCreated();
+	    }
+	    
+<#+			
+		foreach(DataRow columnRow in this.Columns.Rows){
+			string sqlType = columnRow["DataType"].ToString();
+			string systemType = DatabaseManager.GetSysType(sqlType);
+			string columnName = columnRow["ColumnName"].ToString();
+#>
+		<#=systemType #> _<#=columnName #>;
+		public <#=systemType #> <#=columnName #> { 
+		    get{
+		        return _<#=columnName #>;
+		    } 
+		    set{
+		        this.On<#=columnName #>Changing(value);
+                this.SendPropertyChanging();
+                this._<#=columnName #> = value;
+                this.SendPropertyChanged("<#=columnName #>");
+                this.On<#=columnName #>Changed();
+		    }
+		}
+		
+<#+
+		}
+#>
+        #region ' Extensibility Hooks '
+        
+        partial void OnLoaded();
+        partial void OnValidate(System.Data.Linq.ChangeAction action);
+        partial void OnCreated();
+<#+
+		foreach(DataRow columnRow in this.Columns.Rows){
+			string sqlType = columnRow["DataType"].ToString();
+			string systemType = DatabaseManager.GetSysType(sqlType);
+			string columnName = columnRow["ColumnName"].ToString();
+#>
+        partial void On<#=columnName #>Changing(<#=systemType #> value);
+        partial void On<#=columnName #>Changed();
+<#+
+      }
+#>       
+        #endregion
+	    
+        #region ' Foreign Keys '
+<#+
+        List<string> foreignKeyCreated = new List<string>();
+        foreach(DataRow foreignKeyRow in this.ForeignKeys.Rows){
+            string pkTableName = foreignKeyRow["OtherTable"].ToString();
+            string fkColumnName = foreignKeyRow["ThisColumn"].ToString();
+            string pkColumnName = foreignKeyRow["OtherColumn"].ToString();
+            string fkTableName = foreignKeyRow["ThisTable"].ToString();
+            
+            if(!fkTableName.Equals(this.TableName)){
+                //I know this looks weird, but we need to reverse things
+                //I want to capture one to many and many to one
+                pkTableName = fkTableName;
+                pkColumnName = fkColumnName;
+                fkColumnName = foreignKeyRow["OtherColumn"].ToString();
+            }
+            
+            if(pkTableName != fkTableName)
+            {
+                if(!foreignKeyCreated.Contains(pkTableName))
+                {
+                    foreignKeyCreated.Add(pkTableName);
+            
+#>      
+        public IQueryable<<#=Utilities.CleanUp(pkTableName) #>> <#=Utilities.CleanUp(Inflector.MakePlural(pkTableName))#> {
+            get{
+                
+                <#=this.Namespace #>.DB _db = DB.CreateDB();
+                return from items in _db.<#=Utilities.CleanUp(pkTableName) #>
+                       where items.<#=pkColumnName #> == _<#=fkColumnName #>
+                       select items;
+            }
+        }
+<#+
+				}
+			}
+		}#>
+        
+        #endregion	    
+
+        private static PropertyChangingEventArgs emptyChangingEventArgs = new PropertyChangingEventArgs(String.Empty);
+        public event PropertyChangingEventHandler PropertyChanging;
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected virtual void SendPropertyChanging() {
+            if ((this.PropertyChanging != null)) {
+                this.PropertyChanging(this, emptyChangingEventArgs);
+            }
+        }
+
+        protected virtual void SendPropertyChanged(String propertyName) {
+            if ((this.PropertyChanged != null)) {
+                this.PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }	    
+	}
+}
+<#+
+	}	
+}
+#>

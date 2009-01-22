@@ -1,0 +1,34 @@
+﻿<#@ template language="C#" hostspecific="True" debug="True" #>
+<#@ output extension="log" #>
+<#@ include file="T4Toolbox\T4Toolbox.tt" #>
+<#@ include file="SubSonic3\SubSonicGenerator.tt" #>
+<#
+// <copyright file="SubSonic3Creator.tt" company="George J. Capnias">
+//  Copyright © . All Rights Reserved.
+// </copyright>
+
+    const string Namespace = "Northwind.Data";
+    const string ConnectionName = "Northwind";
+	
+    //This is the name of your database and is used in naming
+    //the repository.
+    const string DatabaseName = "Northwind";
+	
+    //this is a list of tables you don't want generated
+    string[] ExcludedTables = new string[] { "sysdiagrams", "SubSonicSchemaInfo" };
+	
+    IServiceProvider hostServiceProvider = (IServiceProvider)Host;
+	SettingsManager config = new SettingsManager(hostServiceProvider);
+	
+	// Prepare the database
+	DatabaseManager.ConnectionString = config.ConnectionStrings[ConnectionName].ConnectionString;
+	DatabaseManager.ProviderName = config.ConnectionStrings[ConnectionName].ProviderName;
+	DatabaseManager.ExcludedTables = ExcludedTables;
+	DatabaseManager.DatabaseName = DatabaseName;
+	
+	// Code Generation starts here...
+	SubSonicGenerator generator = new SubSonicGenerator();
+	generator.Namespace = Namespace;
+	generator.Run();
+	
+#>

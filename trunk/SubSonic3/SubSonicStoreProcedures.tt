@@ -1,0 +1,80 @@
+﻿<#+
+// <copyright file="SubSonicStoreProcedures.tt" company="">
+//  Copyright © . All Rights Reserved.
+// </copyright>
+
+public class SubSonicStoreProcedures : Template
+{
+    private string _Namespace;
+    private DataTable _StoredProcedures;
+	
+    public string Namespace
+    {
+        get { return _Namespace; }
+        set { _Namespace = value; }
+    }
+	
+    public DataTable StoredProcedures
+    {
+        get { return _StoredProcedures; }
+        set { _StoredProcedures = value; }
+    }
+	
+	protected override void RenderCore()
+	{
+#>
+using System;
+using SubSonic;
+using SubSonic.Schema;
+using SubSonic.DataProviders;
+
+namespace <#=this.Namespace #>
+{
+	public partial class DB
+	{
+<#+
+		foreach(DataRow procedureRow in this.StoredProcedures.Rows)
+		{
+			string storeprocedureName = procedureRow["ROUTINE_NAME"].ToString();
+			string methodName = Utilities.CleanUp(storeprocedureName.Replace(" ", ""));
+			string spType = procedureRow["ROUTINE_TYPE"].ToString();
+			if(spType == "PROCEDURE" &! storeprocedureName.StartsWith("sp_"))
+			{
+				DataTable spParameters = DatabaseManager.GetSPParameters(storeprocedureName);
+				StringBuilder sb = new StringBuilder();
+				int loopCount = 0;
+				foreach(DataRow parameterRow in spParameters.Rows)
+				{
+					string sType = DatabaseManager.GetSysType(parameterRow["DATA_TYPE"].ToString());
+					string argName = parameterRow["PARAMETER_NAME"].ToString().Replace("@", "");
+					sb.AppendFormat("{0} {1}", sType, argName);
+					loopCount++;
+					if(loopCount < spParameters.Rows.Count)
+						sb.Append(",");
+				}
+				string paramArgs = sb.ToString();
+#>
+		public StoredProcedure <#=methodName #>(<#=paramArgs #>){
+			StoredProcedure sb = new StoredProcedure("<#=storeprocedureName #>", ProviderFactory.GetProvider("<#=DatabaseManager.DatabaseName #>"));
+<#+
+				foreach(DataRow parameterRow in spParameters.Rows)
+				{
+					string argName = parameterRow["PARAMETER_NAME"].ToString().Replace("@", "");			
+#>
+			sb.Command.AddParameter("<#=parameterRow["PARAMETER_NAME"].ToString() #>", <#=argName #>);
+<#+
+				} 
+#>
+			return sb;
+		}
+		
+<#+
+			} 
+		} 
+#>
+	}
+}
+<#+
+	}
+}
+#>
