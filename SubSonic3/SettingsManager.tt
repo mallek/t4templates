@@ -1,0 +1,95 @@
+﻿<#@ assembly name="EnvDTE" #>
+<#@ assembly name="System.Configuration" #>
+<#@ import namespace="EnvDTE" #>
+<#@ import namespace="System.Configuration" #>
+<#@ import namespace="System.Xml" #>
+<#+
+// <copyright file="SettingsManager.tt">
+//
+//  The contents of this file are subject to the Mozilla Public
+//  License Version 1.1 (the "License"); you may not use this file
+//  except in compliance with the License. You may obtain a copy of
+//  the License at http://www.mozilla.org/MPL/
+//  
+//  Software distributed under the License is distributed on an 
+//  "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+//  implied. See the License for the specific language governing
+//  rights and limitations under the License.
+//
+// </copyright>
+
+public class SettingsManager
+{
+	private IServiceProvider _ServiceProvider;
+    private ConnectionStringSettingsCollection _ConnectionStrings;
+
+    public string Namespace
+    {
+        get { return GetNamespace(); }
+    }
+        
+    public ConnectionStringSettingsCollection ConnectionStrings
+    {
+        get { return _ConnectionStrings; }
+    }
+
+    public SettingsManager(IServiceProvider ServiceProvider)
+    {
+		_ServiceProvider = ServiceProvider;
+        _ConnectionStrings = new ConnectionStringSettingsCollection();
+        XmlDocument doc = new XmlDocument();
+        doc.Load(GetConfigPath());
+        foreach (XmlNode node in doc.SelectNodes("//configuration/connectionStrings/add"))
+        {
+            ConnectionStringSettings cs = new ConnectionStringSettings(
+                node.Attributes["name"].Value,
+                node.Attributes["connectionString"].Value,
+                node.Attributes["providerName"].Value);
+            _ConnectionStrings.Add(cs);            
+        }
+    }
+    
+    private EnvDTE.Project GetCurrentProject()
+    {
+        if (_ServiceProvider == null)
+            throw new Exception("Host property returned unexpected value (null)");
+
+        EnvDTE.DTE dte = (EnvDTE.DTE)_ServiceProvider.GetService(typeof(EnvDTE.DTE));
+        if (dte == null)
+            throw new Exception("Unable to retrieve EnvDTE.DTE");
+
+        Array activeSolutionProjects = (Array)dte.ActiveSolutionProjects;
+        if (activeSolutionProjects == null)
+            throw new Exception("DTE.ActiveSolutionProjects returned null");
+
+        EnvDTE.Project dteProject = (EnvDTE.Project)activeSolutionProjects.GetValue(0);
+        if (dteProject == null)
+            throw new Exception("DTE.ActiveSolutionProjects[0] returned null");
+
+        return dteProject;
+    }
+
+    private string GetConfigPath()
+    {
+        EnvDTE.Project project = GetCurrentProject();
+        foreach (EnvDTE.ProjectItem item in project.ProjectItems)
+        {
+            // if it is the configuration, then open it up
+            if (string.Compare(item.Name, "App.config", true) == 0)
+            {
+                System.IO.FileInfo info =
+                  new System.IO.FileInfo(project.FullName);
+                return info.Directory.FullName + "\\" + item.Name;
+            }
+        }
+        return "";
+    }
+    
+    private string GetNamespace()
+    {
+        EnvDTE.Project project = GetCurrentProject();
+        //return project.Properties["DefaultNamespace"].ToString();
+        return project.Name;
+    }    
+}
+#>

@@ -1,0 +1,119 @@
+﻿<#@ assembly name="System.Core" #>
+<#@ assembly name="System.Data" #>
+<#@ import namespace="System" #>
+<#@ import namespace="System.Collections" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ import namespace="System.Data" #>
+<#@ import namespace="System.Data.Common" #>
+<#@ import namespace="System.Data.SqlClient" #>
+<#@ import namespace="System.Globalization" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="System.Text.RegularExpressions" #>
+<#@ include file="SubSonic3\DatabaseManager.tt" #>
+<#@ include file="SubSonic3\Inflector.tt" #>
+<#@ include file="SubSonic3\SettingsManager.tt" #>
+<#@ include file="SubSonic3\SubSonicClasses.tt" #>
+<#@ include file="SubSonic3\SubsonicQuerySurface.tt" #>
+<#@ include file="SubSonic3\SubSonicRepository.tt" #>
+<#@ include file="SubSonic3\SubSonicStoreProcedures.tt" #>
+<#@ include file="SubSonic3\SubSonicStructs.tt" #>
+<#+
+// <copyright file="SubSonicGenerator.tt" company="">
+//  Copyright © . All Rights Reserved.
+// </copyright>
+
+public static class Utilities
+{
+	public static string CleanUp(string tableName){
+		string result = tableName;
+		
+		//strip blanks
+		result = result.Replace(" ", "_");
+		
+		//put your logic here...
+		
+		return result;
+	}
+	
+}
+
+public class SubSonicGenerator : Generator
+{
+    private string _Namespace;
+    private string _ConnectionString;
+    private string _ProviderName;
+    private string _Database;
+    
+    public string Namespace
+    {
+        get { return _Namespace; }
+        set { _Namespace = value; }
+    }
+	
+    public string ConnectionString
+    {
+        get { return _ConnectionString; }
+        set { _ConnectionString = value; }
+    }
+
+    public string ProviderName
+    {
+        get { return _ProviderName; }
+        set { _ProviderName = value; }
+    }
+	
+    public string Database
+    {
+        get { return _Database; }
+        set { _Database = value; }
+    }
+	
+	protected override void RunCore()
+	{
+		// Table classes
+		DataTable tables = DatabaseManager.GetTables();
+		foreach(DataRow tableRow in tables.Rows){
+			string rawTableName = tableRow[2].ToString();
+			DataTable foreignKeys = DatabaseManager.GetTableForeignKeys(rawTableName);
+			string tableName = Utilities.CleanUp(rawTableName);
+			// !DatabaseManager.ExcludedTables.Contains(rawTableName) && 
+			if(rawTableName != "sysdiagrams" && tableRow[3].ToString() == "BASE TABLE")
+			{
+				string[] restrictions = new string[4]{ tableRow[0].ToString(), null, tableName, null };
+				string pk = DatabaseManager.GetTablePrimaryKey(rawTableName);
+				DataTable columns = DatabaseManager.GetTableColumns(rawTableName);
+				
+				SubSonicClass classTemplate = new SubSonicClass();
+				classTemplate.Namespace = this.Namespace;
+				classTemplate.TableName = tableName;
+				classTemplate.Columns = columns;
+				classTemplate.ForeignKeys = foreignKeys;
+				classTemplate.RenderToFile(tableName + ".cs");
+			}
+		}
+		// QuerySurface class
+		SubsonicQuerySurface querysurfaceTemplate = new SubsonicQuerySurface();
+		querysurfaceTemplate.Namespace = this.Namespace;
+		querysurfaceTemplate.Tables = tables;
+		querysurfaceTemplate.RenderToFile("QuerySurface.cs");
+		
+		// Repository class
+		SubSonicRepository repositoryTemplate = new SubSonicRepository();
+		repositoryTemplate.Namespace = this.Namespace;
+		repositoryTemplate.RenderToFile("Repository.cs");
+		
+		// StoreProcedures class
+		SubSonicStoreProcedures proceduresTemplate = new SubSonicStoreProcedures();
+		proceduresTemplate.Namespace = this.Namespace;
+		proceduresTemplate.StoredProcedures = DatabaseManager.GetStoreProcedures();
+		proceduresTemplate.RenderToFile("StoreProcedures.cs");
+		
+		// SubSonicStructs class
+		SubSonicStructs structsTemplate = new SubSonicStructs();
+		structsTemplate.Namespace = this.Namespace;
+		structsTemplate.Tables = tables;
+		structsTemplate.RenderToFile("Structs.cs");
+	}
+}
+#>

@@ -1,0 +1,247 @@
+﻿<#@ assembly name="System.Data" #>
+<#@ assembly name="System.Xml" #>
+<#@ import namespace="System.Data" #>
+<#@ import namespace="System.Data.Common" #>
+<#@ import namespace="System.Data.SqlClient" #>
+<#@ import namespace="System.Xml" #>
+<#+
+// <copyright file="DatabaseManager.tt" company="">
+//  Copyright © . All Rights Reserved.
+// </copyright>
+
+static public class DatabaseManager
+{
+	static public string ConnectionString;
+	static public string ProviderName;
+	static public string DatabaseName;
+	static public string[] ExcludedTables;
+
+	static public DbConnection GetDBConnection(){
+		DbProviderFactory providerFactory = DbProviderFactories.GetFactory(DatabaseManager.ProviderName);
+		DbConnection conn = providerFactory.CreateConnection();
+		conn.ConnectionString = DatabaseManager.ConnectionString;
+		conn.Open();
+		return conn;
+	}
+	
+	static public DataTable GetSchema(string metaCollection)
+	{
+		return DatabaseManager.GetSchema(metaCollection, new string[4]);
+	}
+	
+	static public DataTable GetSchema(string metaCollection, string[] restrictions)
+	{
+		DataTable tbl = null;
+		using(DbConnection conn = DatabaseManager.GetDBConnection())
+		{
+			tbl = conn.GetSchema(metaCollection, restrictions);
+		}
+		return tbl;
+	}
+
+    static public DataTable GetTables()
+    {
+        return DatabaseManager.GetSchema("Tables");
+    }
+
+	static public DataTable GetTableColumns(string table)
+	{
+		DataTable tbl = new DataTable();
+		using(SqlConnection conn = new SqlConnection(DatabaseManager.ConnectionString))
+		{
+			SqlCommand cmd = new SqlCommand(sqlGetColumns, conn);
+			cmd.Parameters.AddWithValue("@tableName", table);
+			SqlDataAdapter da = new SqlDataAdapter(cmd);
+			da.Fill(tbl);
+		}
+		return tbl;
+	}
+	
+	static public string GetTablePrimaryKey(string tableName)
+	{
+		string[] restrictions = new string[4] { DatabaseManager.DatabaseName, null, tableName, null };
+		DataTable tbl = DatabaseManager.GetSchema("IndexColumns", restrictions);
+		string primarykey = "";
+		foreach(DataRow dr in tbl.Rows){
+			string index = dr["constraint_name"].ToString();
+			if (index.StartsWith("PK_"))
+			{
+				primarykey = dr["COLUMN_NAME"].ToString();
+				break;
+			}
+		}
+		return primarykey;
+	}
+	
+	static public DataTable GetTableForeignKeys(string tableName)
+	{
+		DataTable tbl = new DataTable();
+		using(SqlConnection conn = new SqlConnection(DatabaseManager.ConnectionString))
+		{
+			SqlCommand cmd = new SqlCommand(FKSql, conn);
+			cmd.Parameters.AddWithValue("@tableName", tableName);
+			SqlDataAdapter da = new SqlDataAdapter(cmd);
+			da.Fill(tbl);
+		}
+		return tbl;
+	}
+    
+	static public DataTable GetStoreProcedures()
+	{
+		return GetSchema("Procedures");
+	}
+	
+	static public DataTable GetSPParameters(string storeprocedureName)
+	{
+		string[] restrictions = new string[4] { ProviderName, null, storeprocedureName, null };
+		return GetSchema("ProcedureParameters", restrictions);
+	}
+
+    static public string GetSysType(string sqlType)
+    {
+        string sysType = "string";
+        switch (sqlType)
+        {
+            case "bigint":
+            case "smallint":
+            case "int":
+                sysType = "int";
+                break;
+                
+            case "uniqueidentifier":
+                sysType = "Guid";
+                break;
+                
+            case "smalldatetime":
+            case "datetime":
+                sysType = "DateTime";
+                break;
+                
+            case "float":
+                sysType = "double";
+                break;
+                
+            case "real":
+            case "numeric":
+            case "smallmoney":
+            case "decimal":
+            case "money":
+                sysType = "decimal";
+                break;
+                
+            case "bit":
+                sysType = "bool";
+                break;
+                
+            case "image":
+            case "binary":
+            case "tinyint":
+            case "varbinary":
+                sysType = "byte[]";
+                break;
+        }
+        return sysType;
+    }
+	
+    static public DbType GetDbType(string sqlType)
+    {
+        switch (sqlType)
+        {
+            case "varchar":
+                return DbType.AnsiString;
+            case "nvarchar":
+                return DbType.String;
+            case "int":
+                return DbType.Int32;
+            case "uniqueidentifier":
+                return DbType.Guid;
+            case "datetime":
+                return DbType.DateTime;
+            case "bigint":
+                return DbType.Int64;
+            case "binary":
+                return DbType.Binary;
+            case "bit":
+                return DbType.Boolean;
+            case "char":
+                return DbType.AnsiStringFixedLength;
+            case "decimal":
+                return DbType.Decimal;
+            case "float":
+                return DbType.Double;
+            case "image":
+                return DbType.Binary;
+            case "money":
+                return DbType.Currency;
+            case "nchar":
+                return DbType.String;
+            case "ntext":
+                return DbType.String;
+            case "numeric":
+                return DbType.Decimal;
+            case "real":
+                return DbType.Single;
+            case "smalldatetime":
+                return DbType.DateTime;
+            case "smallint":
+                return DbType.Int16;
+            case "smallmoney":
+                return DbType.Currency;
+            case "sql_variant":
+                return DbType.String;
+            case "sysname":
+                return DbType.String;
+            case "text":
+                return DbType.AnsiString;
+            case "timestamp":
+                return DbType.Binary;
+            case "tinyint":
+                return DbType.Byte;
+            case "varbinary":
+                return DbType.Binary;
+            default:
+                return DbType.AnsiString;
+        }
+		
+    }
+	
+const string sqlGetColumns = @"SELECT 
+TABLE_CATALOG AS [Database],
+TABLE_SCHEMA AS Owner, 
+TABLE_NAME AS TableName, 
+COLUMN_NAME AS ColumnName, 
+ORDINAL_POSITION AS OrdinalPosition, 
+COLUMN_DEFAULT AS DefaultSetting, 
+IS_NULLABLE AS IsNullable, DATA_TYPE AS DataType, 
+CHARACTER_MAXIMUM_LENGTH AS MaxLength, 
+DATETIME_PRECISION AS DatePrecision, 
+COLUMNPROPERTY(object_id('[' + TABLE_SCHEMA + '].[' + TABLE_NAME + ']'), COLUMN_NAME, 'IsIdentity') AS IsIdentity, 
+COLUMNPROPERTY(object_id('[' + TABLE_SCHEMA + '].[' + TABLE_NAME + ']'), COLUMN_NAME, 'IsComputed') as IsComputed 
+FROM  INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME=@tableName
+ORDER BY OrdinalPosition ASC";
+
+
+const string FKSql = @"SELECT
+    ThisTable  = FK.TABLE_NAME,
+    ThisColumn = CU.COLUMN_NAME,
+    OtherTable  = PK.TABLE_NAME,
+    OtherColumn = PT.COLUMN_NAME, 
+    Constraint_Name = C.CONSTRAINT_NAME,
+    Owner = FK.TABLE_SCHEMA
+FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS C
+INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS FK ON C.CONSTRAINT_NAME = FK.CONSTRAINT_NAME
+INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS PK ON C.UNIQUE_CONSTRAINT_NAME = PK.CONSTRAINT_NAME
+INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE CU ON C.CONSTRAINT_NAME = CU.CONSTRAINT_NAME
+INNER JOIN
+    (	
+        SELECT i1.TABLE_NAME, i2.COLUMN_NAME
+        FROM  INFORMATION_SCHEMA.TABLE_CONSTRAINTS i1
+        INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE i2 ON i1.CONSTRAINT_NAME = i2.CONSTRAINT_NAME
+        WHERE i1.CONSTRAINT_TYPE = 'PRIMARY KEY'
+    ) 
+PT ON PT.TABLE_NAME = PK.TABLE_NAME
+WHERE FK.Table_NAME=@tableName OR PK.Table_NAME=@tableName";
+
+}
+#>
