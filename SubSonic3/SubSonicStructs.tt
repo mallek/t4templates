@@ -36,7 +36,7 @@ namespace <#=this.Namespace #>
 			if(rawTableName != "sysdiagrams" && tableRow[3].ToString() == "BASE TABLE")
 			{
 				string[] restrictions = new string[4]{ tableRow[0].ToString(), null, rawTableName, null };
-				DataTable columns = DatabaseManager.GetTableColumns(rawTableName);
+				DataTable columns = DatabaseManager.GetTableColumns("", rawTableName);
 #>
 	public struct <#=tableName #>Table
 	{

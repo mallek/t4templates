@@ -6,6 +6,8 @@
 public class SubSonicClass : Template
 {
     private string _Namespace;
+    private string _TableSchema;
+    private string _TableNameRaw;
     private string _TableName;
     private DataTable _Columns;
     private DataTable _ForeignKeys;
@@ -14,6 +16,18 @@ public class SubSonicClass : Template
     {
         get { return _Namespace; }
         set { _Namespace = value; }
+    }
+	
+    public string TableSchema
+    {
+        get { return _TableSchema; }
+        set { _TableSchema = value; }
+    }
+	
+    public string TableNameRaw
+    {
+        get { return _TableNameRaw; }
+        set { _TableNameRaw = value; }
     }
 	
     public string TableName
@@ -45,7 +59,7 @@ using System.ComponentModel;
 namespace <#=this.Namespace #>
 {
     /// <summary>
-    /// A class which represents the <#=this.TableName #> table in the <#=DatabaseManager.DatabaseName #> Database.
+    /// A class which represents the [<#=this.TableSchema  #>].[<#=this.TableNameRaw #>] table in the <#=DatabaseManager.DatabaseName #> Database.
     /// This class is queryable through <#=DatabaseManager.DatabaseName #>.DB.<#=this.TableName #>
     /// </summary>
 	public partial class <#=this.TableName #>: INotifyPropertyChanging, INotifyPropertyChanged
@@ -54,13 +68,13 @@ namespace <#=this.Namespace #>
 	        OnCreated();
 	    }
 	    
-<#+			
+<#+
 		foreach(DataRow columnRow in this.Columns.Rows){
-			string sqlType = columnRow["DataType"].ToString();
-			string systemType = DatabaseManager.GetSysType(sqlType);
-			string columnName = columnRow["ColumnName"].ToString();
+			Type columnType = (Type)columnRow["DataType"];
+			string systemType = DatabaseManager.getPropertyType(columnType.ToString());
+			string columnName = Utilities.CleanUp(columnRow["ColumnName"].ToString());
 #>
-		<#=systemType #> _<#=columnName #>;
+		private <#=systemType #> _<#=columnName #>;
 		public <#=systemType #> <#=columnName #> { 
 		    get{
 		        return _<#=columnName #>;
@@ -84,9 +98,9 @@ namespace <#=this.Namespace #>
         partial void OnCreated();
 <#+
 		foreach(DataRow columnRow in this.Columns.Rows){
-			string sqlType = columnRow["DataType"].ToString();
-			string systemType = DatabaseManager.GetSysType(sqlType);
-			string columnName = columnRow["ColumnName"].ToString();
+			Type columnType = (Type)columnRow["DataType"];
+			string systemType = DatabaseManager.getPropertyType(columnType.ToString());
+			string columnName = Utilities.CleanUp(columnRow["ColumnName"].ToString());
 #>
         partial void On<#=columnName #>Changing(<#=systemType #> value);
         partial void On<#=columnName #>Changed();
@@ -99,17 +113,17 @@ namespace <#=this.Namespace #>
 <#+
         List<string> foreignKeyCreated = new List<string>();
         foreach(DataRow foreignKeyRow in this.ForeignKeys.Rows){
-            string pkTableName = foreignKeyRow["OtherTable"].ToString();
-            string fkColumnName = foreignKeyRow["ThisColumn"].ToString();
-            string pkColumnName = foreignKeyRow["OtherColumn"].ToString();
-            string fkTableName = foreignKeyRow["ThisTable"].ToString();
+            string fkTableName = foreignKeyRow["FK_TABLE_NAME"].ToString();
+            string fkColumnName = foreignKeyRow["FK_COLUMN_NAME"].ToString();
+            string pkTableName = foreignKeyRow["PK_TABLE_NAME"].ToString();
+            string pkColumnName = foreignKeyRow["PK_COLUMN_NAME"].ToString();
             
-            if(!fkTableName.Equals(this.TableName)){
+            if(!fkTableName.Equals(this.TableNameRaw)){
                 //I know this looks weird, but we need to reverse things
                 //I want to capture one to many and many to one
                 pkTableName = fkTableName;
                 pkColumnName = fkColumnName;
-                fkColumnName = foreignKeyRow["OtherColumn"].ToString();
+                fkColumnName = foreignKeyRow["PK_COLUMN_NAME"].ToString();
             }
             
             if(pkTableName != fkTableName)
@@ -124,7 +138,7 @@ namespace <#=this.Namespace #>
                 
                 <#=this.Namespace #>.DB _db = DB.CreateDB();
                 return from items in _db.<#=Utilities.CleanUp(pkTableName) #>
-                       where items.<#=pkColumnName #> == _<#=fkColumnName #>
+                       where items.<#=Utilities.CleanUp(pkColumnName) #> == _<#=Utilities.CleanUp(fkColumnName) #>
                        select items;
             }
         }

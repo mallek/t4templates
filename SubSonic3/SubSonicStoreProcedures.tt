@@ -36,7 +36,7 @@ namespace <#=this.Namespace #>
 		foreach(DataRow procedureRow in this.StoredProcedures.Rows)
 		{
 			string storeprocedureName = procedureRow["ROUTINE_NAME"].ToString();
-			string methodName = Utilities.CleanUp(storeprocedureName.Replace(" ", ""));
+			string methodName = Utilities.CleanUp(storeprocedureName);
 			string spType = procedureRow["ROUTINE_TYPE"].ToString();
 			if(spType == "PROCEDURE" &! storeprocedureName.StartsWith("sp_"))
 			{
