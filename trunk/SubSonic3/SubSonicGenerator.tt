@@ -108,7 +108,8 @@ public class SubSonicGenerator : Generator
 				classTemplate.TableName = tableName;
 				classTemplate.Columns = columns;
 				classTemplate.ForeignKeys = foreignKeys;
-				classTemplate.RenderToFile(tableSchema + "." + tableName + ".cs");
+				string filename = string.IsNullOrEmpty(tableSchema) ? tableName + ".cs" : tableSchema + "." + tableName + ".cs";
+				classTemplate.RenderToFile(filename);
 			}
 		}
 		// QuerySurface class

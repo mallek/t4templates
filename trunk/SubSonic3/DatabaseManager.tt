@@ -35,13 +35,23 @@ public static class DatabaseManager
     public static bool SupportsMetadataCollection(string metacollection)
     {
 		bool supports = false;
-		foreach (DataRow metacollectionRow in DatabaseManager.DBMetadataCollection.Rows)
-		{
-			if (metacollectionRow["CollectionName"].ToString() == metacollection)
-			{
-				supports = true;
+        switch (DatabaseManager.ProviderName)
+        {
+			case "System.Data.SqlServerCe.3.5":
+			case "System.Data.SqlServerCe":
+				supports = false;
 				break;
-			}
+				
+			default:		
+				foreach (DataRow metacollectionRow in DatabaseManager.DBMetadataCollection.Rows)
+				{
+					if (metacollectionRow["CollectionName"].ToString() == metacollection)
+					{
+						supports = true;
+						break;
+					}
+				}
+				break;
 		}
 		
 		return supports;
@@ -72,7 +82,56 @@ public static class DatabaseManager
 
     public static DataTable GetTables()
     {
-        return DatabaseManager.GetSchema("Tables");
+		DataTable tbl = new DataTable("Tables");
+        switch (DatabaseManager.ProviderName)
+        {
+			case "System.Data.SqlServerCe.3.5":
+			case "System.Data.SqlServerCe":
+                tbl.Columns.Add("TABLE_CATALOG", typeof(System.String));
+                tbl.Columns.Add("TABLE_SCHEMA", typeof(System.String));
+                tbl.Columns.Add("TABLE_NAME", typeof(System.String));
+                tbl.Columns.Add("TABLE_TYPE", typeof(System.String));
+                tbl.Columns.Add("TABLE_GUID", typeof(System.Guid));
+                tbl.Columns.Add("DESCRIPTION", typeof(System.String));
+                tbl.Columns.Add("TABLE_PROPID", typeof(System.Int32));
+                tbl.Columns.Add("DATE_CREATED", typeof(System.DateTime));
+                tbl.Columns.Add("DATE_MODIFIED", typeof(System.DateTime));
+				
+				using(DbConnection conn = DatabaseManager.GetDBConnection())
+				{
+					DbCommand cmd = conn.CreateCommand();
+					cmd.CommandText = tblSQLCE;
+					cmd.CommandType = CommandType.Text;
+	                DbDataReader results = cmd.ExecuteReader();
+					while (results.Read())
+					{
+						DataRow valuesRow = tbl.NewRow();
+						if (results[0] != DBNull.Value)
+							valuesRow[0] = results.GetString(0);
+						if (results[1] != DBNull.Value)
+							valuesRow[1] = results.GetString(1);
+						if (results[2] != DBNull.Value)
+							valuesRow[2] = results.GetString(2);
+						if (results[3] != DBNull.Value)
+							valuesRow[3] = results.GetString(3);
+						if (results[5] != DBNull.Value)
+							valuesRow[5] = results.GetString(5);
+						if (results[7] != DBNull.Value)
+							valuesRow[7] = results.GetDateTime(7);
+						if (results[8] != DBNull.Value)
+							valuesRow[8] = results.GetDateTime(8);
+						tbl.Rows.Add(valuesRow);
+					}
+					results.Close();
+				}
+				break;
+			
+			default:
+				tbl = DatabaseManager.GetSchema("Tables");
+				break;
+        }
+		
+        return tbl;
     }
 
 	public static DataTable GetTableColumns(string tableSchema, string tableName)
@@ -83,11 +142,16 @@ public static class DatabaseManager
             DbCommand cmd = conn.CreateCommand();
             switch (DatabaseManager.ProviderName)
             {
+				case "System.Data.SqlServerCe.3.5":
+				case "System.Data.SqlServerCe":
 				case "System.Data.SqlClient":
 					if (!string.IsNullOrEmpty(tableSchema))
 						cmd.CommandText = string.Format("SELECT * FROM [{0}].[{1}]", tableSchema, tableName);
 					else
 						cmd.CommandText = string.Format("SELECT * FROM [{0}]", tableName);
+					
+					cmd.CommandType = CommandType.Text;
+					tbl = cmd.ExecuteReader(CommandBehavior.KeyInfo).GetSchemaTable();
 					break;
 					
 				case "MySql.Data.MySqlClient":
@@ -95,15 +159,15 @@ public static class DatabaseManager
 						cmd.CommandText = string.Format("SELECT * FROM `{0}`.`{1}`", tableSchema, tableName);
 					else
 					cmd.CommandText = string.Format("SELECT * FROM `{0}`", tableName);
+					
+					cmd.CommandType = CommandType.Text;
+					tbl = cmd.ExecuteReader(CommandBehavior.KeyInfo).GetSchemaTable();
 					break;
 					
 				default:
 					throw new NotImplementedException("The provider '" + DatabaseManager.ProviderName + "' is not implemented!");
-					break;
             }
             
-            cmd.CommandType = CommandType.Text;
-            tbl = cmd.ExecuteReader(CommandBehavior.KeyInfo).GetSchemaTable();
 		}
 		return tbl;
 	}
@@ -128,30 +192,85 @@ public static class DatabaseManager
 	
 	public static DataTable GetTableForeignKeys(string tableSchema, string tableName)
 	{
+		DataTable tbl = new DataTable("ForeignKeys");
+		string WhereClause;
+		if (!string.IsNullOrEmpty(tableSchema))
+			WhereClause = string.Format(" WHERE KCUC.TABLE_SCHEMA = '{0}' AND KCUC.TABLE_NAME = '{1}'", tableSchema, tableName);
+		else
+			WhereClause = string.Format(" WHERE KCUC.TABLE_NAME = '{0}'", tableName);
 		
-		DataTable tbl = new DataTable();
 		using(DbConnection conn = DatabaseManager.GetDBConnection())
 		{
             DbCommand cmd = conn.CreateCommand();
+            
             switch (DatabaseManager.ProviderName)
             {
-				case "System.Data.SqlClient":
-				case "MySql.Data.MySqlClient":
-					string WhereClause;
-					if (!string.IsNullOrEmpty(tableSchema))
-						WhereClause = string.Format(" WHERE KCUC.TABLE_SCHEMA = '{0}' AND KCUC.TABLE_NAME = '{1}'", tableSchema, tableName);
-					else
-						WhereClause = string.Format(" WHERE KCUC.TABLE_NAME = '{0}'", tableName);
+				case "System.Data.SqlServerCe.3.5":
+				case "System.Data.SqlServerCe":
+					tbl.Columns.Add("FK_TABLE_CATALOG", typeof(System.String));
+					tbl.Columns.Add("FK_TABLE_SCHEMA", typeof(System.String));
+					tbl.Columns.Add("FK_TABLE_NAME", typeof(System.String));
+					tbl.Columns.Add("FK_COLUMN_NAME", typeof(System.String));
+					tbl.Columns.Add("FK_ORDINAL_POSITION", typeof(System.Int32));
+					tbl.Columns.Add("FK_NAME", typeof(System.String));
+					tbl.Columns.Add("PK_TABLE_CATALOG", typeof(System.String));
+					tbl.Columns.Add("PK_TABLE_SCHEMA", typeof(System.String));
+					tbl.Columns.Add("PK_TABLE_NAME", typeof(System.String));
+					tbl.Columns.Add("PK_COLUMN_NAME", typeof(System.String));
+					tbl.Columns.Add("PK_ORDINAL_POSITION", typeof(System.String));
+					tbl.Columns.Add("PK_NAME", typeof(System.String));
 					
-					cmd.CommandText = fkSQL + WhereClause;						
+					cmd.CommandText = fkSQLCE + WhereClause;
+					cmd.CommandType = CommandType.Text;
+	                DbDataReader results = cmd.ExecuteReader();
+					while (results.Read())
+					{
+						DataRow valuesRow = tbl.NewRow();
+						if (results[0] != DBNull.Value)
+							valuesRow[0] = results.GetString(0);
+						if (results[1] != DBNull.Value)
+							valuesRow[1] = results.GetString(1);
+						if (results[2] != DBNull.Value)
+							valuesRow[2] = results.GetString(2);
+						if (results[3] != DBNull.Value)
+							valuesRow[3] = results.GetString(3);
+						if (results[4] != DBNull.Value)
+							valuesRow[4] = results.GetInt32(4);							
+						if (results[5] != DBNull.Value)
+							valuesRow[5] = results.GetString(5);
+						if (results[6] != DBNull.Value)
+							valuesRow[6] = results.GetString(6);
+						if (results[7] != DBNull.Value)
+							valuesRow[7] = results.GetString(7);
+						if (results[8] != DBNull.Value)
+							valuesRow[8] = results.GetString(8);
+						if (results[9] != DBNull.Value)
+							valuesRow[9] = results.GetString(9);
+						if (results[10] != DBNull.Value)
+							valuesRow[10] = results.GetInt32(10);							
+						if (results[11] != DBNull.Value)
+							valuesRow[11] = results.GetString(11);
+						
+						tbl.Rows.Add(valuesRow);
+					}
+					results.Close();
+					break;
+				
+				case "System.Data.SqlClient":
+					cmd.CommandText = fkSQL + WhereClause;
+					cmd.CommandType = CommandType.Text;
+					tbl.Load(cmd.ExecuteReader());
+					break;
+				
+				case "MySql.Data.MySqlClient":
+					cmd.CommandText = fkmySQL + WhereClause;
+					cmd.CommandType = CommandType.Text;
+					tbl.Load(cmd.ExecuteReader());
 					break;
 				
 				default:
 					throw new NotImplementedException("The provider '" + DatabaseManager.ProviderName + "' is not implemented!");
-					break;
             }
-            cmd.CommandType = CommandType.Text;
-            tbl.Load(cmd.ExecuteReader());
 		}
 		return tbl;
 	}
@@ -326,6 +445,9 @@ public static class DatabaseManager
         return classType;
     }
 
+//
+// SQL Server foreign key support
+//
 const string fkSQL = 
 	"SELECT" +
 	"	KCUC.TABLE_CATALOG AS FK_TABLE_CATALOG," +
@@ -350,6 +472,9 @@ const string fkSQL =
 	"		AND RC.UNIQUE_CONSTRAINT_SCHEMA = KCUUC.CONSTRAINT_SCHEMA" +
 	"		AND RC.UNIQUE_CONSTRAINT_NAME = KCUUC.CONSTRAINT_NAME)";
 
+//
+// MySQL foreign key support
+//
 const string fkmySQL =
 	"SELECT" +
 	"	KCUC.TABLE_CATALOG AS FK_TABLE_CATALOG," +
@@ -373,6 +498,33 @@ const string fkmySQL =
 	"	ON (KCUUC.CONSTRAINT_SCHEMA = RC.UNIQUE_CONSTRAINT_SCHEMA" +
 	"  AND KCUUC.CONSTRAINT_NAME = RC.UNIQUE_CONSTRAINT_NAME" +
 	"  AND KCUUC.TABLE_NAME = RC.REFERENCED_TABLE_NAME)";
+
+//
+// SQLCE table and foreign key support
+//
+const string tblSQLCE =
+	"SELECT * " +
+	"FROM INFORMATION_SCHEMA.TABLES";
+
+const string fkSQLCE =
+	"SELECT" +
+	"	KCUC.TABLE_CATALOG AS FK_TABLE_CATALOG," +
+	"	KCUC.TABLE_SCHEMA AS FK_TABLE_SCHEMA," +
+	"	KCUC.TABLE_NAME AS FK_TABLE_NAME, " +
+	"	KCUC.COLUMN_NAME AS FK_COLUMN_NAME, " +
+	"	KCUC.ORDINAL_POSITION AS FK_ORDINAL_POSITION, " +
+	"	KCUC.CONSTRAINT_NAME AS FK_NAME, " +
+	"	KCUUC.TABLE_CATALOG AS PK_TABLE_CATALOG," +
+	"	KCUUC.TABLE_SCHEMA AS PK_TABLE_SCHEMA," +
+	"	KCUUC.TABLE_NAME AS PK_TABLE_NAME," +
+	"	KCUUC.COLUMN_NAME AS PK_COLUMN_NAME," +
+	"	KCUUC.ORDINAL_POSITION AS PK_ORDINAL_POSITION," +
+	"	KCUUC.CONSTRAINT_NAME AS PK_NAME " +
+	"FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS RC " +
+	"JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE KCUC" +
+	"	ON (RC.CONSTRAINT_NAME = KCUC.CONSTRAINT_NAME)" +
+	"JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE KCUUC" +
+	"	ON (RC.UNIQUE_CONSTRAINT_NAME = KCUUC.CONSTRAINT_NAME)";
 	
 }
 #>
