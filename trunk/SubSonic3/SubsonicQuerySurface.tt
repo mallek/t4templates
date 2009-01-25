@@ -220,15 +220,15 @@ namespace <#=this.Namespace #>
 			//********************<#=rawTableName #>********************
 			ITable <#=tableName #>Schema = new DatabaseTable("<#=rawTableName #>", DataProvider);
 <#+ 
-					DataTable tableColumns = DatabaseManager.GetTableColumns(rawTableName);
-					string primaryKey = DatabaseManager.GetTablePrimaryKey(rawTableName);
+					DataTable tableColumns = DatabaseManager.GetTableColumns("", rawTableName);
+					string primaryKey = DatabaseManager.GetTablePrimaryKey("", rawTableName);
 					foreach(DataRow columnRow in tableColumns.Rows)
 					{
 						string columnName = columnRow["ColumnName"].ToString();
 						string uniqueColumnName = tableName + columnName;
 #>
 			
-			IColumn <#=uniqueColumnName #>=new DatabaseColumn("<#=columnName #>", <#=tableName#>Schema);
+			IColumn <#=uniqueColumnName #> = new DatabaseColumn("<#=columnName #>", <#=tableName#>Schema);
 <#+
 						if(primaryKey == columnName){
 #>
@@ -236,9 +236,9 @@ namespace <#=this.Namespace #>
 <#+
 						}
 #>
-			<#=uniqueColumnName #>.DataType=DbType.<#=DatabaseManager.GetDbType(columnRow["DataType"].ToString()) #>;
-			<#=uniqueColumnName #>.IsNullable = <#=(columnRow["IsNullable"].ToString() == "YES").ToString().ToLower() #>;
-			<#=tableName #>Schema.Columns.Add(<#=uniqueColumnName #>);		
+			<#=uniqueColumnName #>.DataType = DbType.<#=DatabaseManager.GetDbType(columnRow["DataType"].ToString()) #>;
+			<#=uniqueColumnName #>.IsNullable = <#=((bool)columnRow["AllowDBNull"]).ToString().ToLower() #>;
+			<#=tableName #>Schema.Columns.Add(<#=uniqueColumnName #>);
 <#+
 					}
 #>

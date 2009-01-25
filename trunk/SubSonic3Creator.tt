@@ -1,4 +1,4 @@
-﻿<#@ template language="C#" hostspecific="True" debug="True" #>
+﻿<#@ template language="C#v3.5" hostspecific="True" debug="True" #>
 <#@ output extension="log" #>
 <#@ include file="T4Toolbox\T4Toolbox.tt" #>
 <#@ include file="SubSonic3\SubSonicGenerator.tt" #>
@@ -7,8 +7,8 @@
 //  Copyright © . All Rights Reserved.
 // </copyright>
 
-    const string Namespace = "Northwind.Data";
-    const string ConnectionName = "Northwind";
+    const string Namespace = "Northwind";
+    const string ConnectionName = "SQLNorthwind";
 	
     //This is the name of your database and is used in naming
     //the repository.

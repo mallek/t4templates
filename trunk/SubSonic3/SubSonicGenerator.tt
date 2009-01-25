@@ -1,5 +1,4 @@
-﻿<#@ assembly name="System.Core" #>
-<#@ assembly name="System.Data" #>
+﻿<#@ assembly name="System.Data" #>
 <#@ import namespace="System" #>
 <#@ import namespace="System.Collections" #>
 <#@ import namespace="System.Collections.Generic" #>
@@ -19,23 +18,39 @@
 <#@ include file="SubSonic3\SubSonicStoreProcedures.tt" #>
 <#@ include file="SubSonic3\SubSonicStructs.tt" #>
 <#+
-// <copyright file="SubSonicGenerator.tt" company="">
+// <copyright file="SubSonicGenerator.tt" company="George J. Capnias">
 //  Copyright © . All Rights Reserved.
 // </copyright>
 
 public static class Utilities
 {
-	public static string CleanUp(string tableName){
-		string result = tableName;
+	public static string CleanUp(string propertyToFilter){
+        string propertyName = string.Empty;
+        string[] nameParts = propertyToFilter.Replace(' ', '_').Split('_');
 		
-		//strip blanks
-		result = result.Replace(" ", "_");
+        foreach (string namePart in nameParts)
+        {
+            propertyName += namePart.Substring(0, 1).ToUpper() + namePart.Substring(1);
+        }
 		
-		//put your logic here...
+        if (string.IsNullOrEmpty(propertyName))
+            throw new Exception("Cannot fix the property name!");
 		
-		return result;
+        return propertyName;
 	}
 	
+	public static string CleanNullOrEmpty(object propertyToFilter)
+	{
+		string propertyValue = null;
+		if (propertyToFilter != DBNull.Value)
+		{
+			if (!string.IsNullOrEmpty(propertyToFilter.ToString()))
+				propertyValue = propertyToFilter.ToString();
+		}
+		
+		return propertyValue;
+	}
+
 }
 
 public class SubSonicGenerator : Generator
@@ -44,6 +59,7 @@ public class SubSonicGenerator : Generator
     private string _ConnectionString;
     private string _ProviderName;
     private string _Database;
+    private DataSet dbschema = new DataSet("Schema");
     
     public string Namespace
     {
@@ -74,22 +90,25 @@ public class SubSonicGenerator : Generator
 		// Table classes
 		DataTable tables = DatabaseManager.GetTables();
 		foreach(DataRow tableRow in tables.Rows){
-			string rawTableName = tableRow[2].ToString();
-			DataTable foreignKeys = DatabaseManager.GetTableForeignKeys(rawTableName);
-			string tableName = Utilities.CleanUp(rawTableName);
-			// !DatabaseManager.ExcludedTables.Contains(rawTableName) && 
-			if(rawTableName != "sysdiagrams" && tableRow[3].ToString() == "BASE TABLE")
+			string tableSchema = Utilities.CleanNullOrEmpty(tableRow["TABLE_SCHEMA"]);
+			string tableNameRaw = tableRow["TABLE_NAME"].ToString();
+			string tableName = Utilities.CleanUp(tableNameRaw);
+			string tableType = tableRow["TABLE_TYPE"].ToString().ToUpper();
+			
+			if(!DatabaseManager.ExcludedTables.Contains(tableNameRaw) && (tableType == "BASE TABLE" || tableType == "TABLE"))
 			{
-				string[] restrictions = new string[4]{ tableRow[0].ToString(), null, tableName, null };
-				string pk = DatabaseManager.GetTablePrimaryKey(rawTableName);
-				DataTable columns = DatabaseManager.GetTableColumns(rawTableName);
+				DataTable columns = DatabaseManager.GetTableColumns(tableSchema, tableNameRaw);
+				string pk = DatabaseManager.GetTablePrimaryKey(tableSchema, tableNameRaw);
+				DataTable foreignKeys = DatabaseManager.GetTableForeignKeys(tableSchema, tableNameRaw);
 				
 				SubSonicClass classTemplate = new SubSonicClass();
 				classTemplate.Namespace = this.Namespace;
+				classTemplate.TableSchema = tableSchema;
+				classTemplate.TableNameRaw = tableNameRaw;
 				classTemplate.TableName = tableName;
 				classTemplate.Columns = columns;
 				classTemplate.ForeignKeys = foreignKeys;
-				classTemplate.RenderToFile(tableName + ".cs");
+				classTemplate.RenderToFile(tableSchema + "." + tableName + ".cs");
 			}
 		}
 		// QuerySurface class
