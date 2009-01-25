@@ -20,7 +20,12 @@ public class SubSonicClass : Template
 	
     public string TableSchema
     {
-        get { return _TableSchema; }
+        get
+			{
+				if (_TableSchema == null)
+					return string.Empty;
+				return _TableSchema;
+			}
         set { _TableSchema = value; }
     }
 	

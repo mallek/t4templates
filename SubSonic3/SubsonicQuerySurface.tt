@@ -52,7 +52,7 @@ namespace <#=this.Namespace #>
         }
 	
 	    public static void CloseDB(){
-	        _db=null;
+	        _db = null;
 	    }
 	    
         public IDataProvider DataProvider = ProviderFactory.GetProvider("<#=DatabaseManager.DatabaseName #>");
@@ -78,21 +78,21 @@ namespace <#=this.Namespace #>
             }
         }
         
-        BatchQuery _batch=null;
+        BatchQuery _batch = null;
         public void Queue<T>(IQueryable<T> qry){
-            if(_batch==null)
-                _batch=new BatchQuery(Provider,QueryProvider);
+            if(_batch == null)
+                _batch = new BatchQuery(Provider,QueryProvider);
             _batch.Queue(qry);
         }
         
         public void Queue(ISqlQuery qry){
-            if(_batch==null)
-                _batch=new BatchQuery(Provider,QueryProvider);
+            if(_batch == null)
+                _batch = new BatchQuery(Provider,QueryProvider);
             _batch.Queue(qry);
         }     
         
         public IDataReader ExecuteBatch(){
-            if(_batch==null)
+            if(_batch == null)
                 throw new InvalidOperationException("There's nothing in the queue");
             else
                 return _batch.ExecuteReader();
@@ -101,10 +101,11 @@ namespace <#=this.Namespace #>
 <#+
 		foreach(DataRow tableRow in this.Tables.Rows)
 		{
-			string rawTableName = tableRow[2].ToString();
-			string tableName = Utilities.CleanUp(rawTableName);
-			//!DatabaseManager.ExcludedTables.Contains(tableName)
-			if (rawTableName != "sysdiagrams" && tableRow[3].ToString() == "BASE TABLE")
+			string tableNameRaw = tableRow[2].ToString();
+			string tableName = Utilities.CleanUp(tableNameRaw);
+			string tableType = tableRow["TABLE_TYPE"].ToString().ToUpper();
+			
+			if(!DatabaseManager.ExcludedTables.Contains(tableNameRaw) && (tableType == "BASE TABLE" || tableType == "TABLE"))
 			{
 
 		#>
@@ -191,10 +192,11 @@ namespace <#=this.Namespace #>
 <#+
 			foreach(DataRow tableRow in this.Tables.Rows)
 			{
-				string rawTableName = tableRow[2].ToString();
-				string tableName = Utilities.CleanUp(rawTableName);
-				//!DatabaseManager.ExcludedTables.Contains(
-				if(rawTableName != "sysdiagrams" && tableRow[3].ToString() == "BASE TABLE")
+				string tableNameRaw = tableRow[2].ToString();
+				string tableName = Utilities.CleanUp(tableNameRaw);
+				string tableType = tableRow["TABLE_TYPE"].ToString().ToUpper();
+				
+				if(!DatabaseManager.ExcludedTables.Contains(tableNameRaw) && (tableType == "BASE TABLE" || tableType == "TABLE"))
 				{
 #>
 			this.<#=tableName #> = new Query<<#=tableName #>>(this.provider);
@@ -211,21 +213,24 @@ namespace <#=this.Namespace #>
 <#+
 			foreach(DataRow tableRow in this.Tables.Rows)
 			{
-				string rawTableName = tableRow[2].ToString().Trim();
-				string tableName = Utilities.CleanUp(rawTableName);
-				//!DatabaseManager.ExcludedTables.Contains(
-				if(rawTableName != "sysdiagrams" && tableRow[3].ToString()=="BASE TABLE")
+				string tableNameRaw = tableRow[2].ToString().Trim();
+				string tableName = Utilities.CleanUp(tableNameRaw);
+				string tableType = tableRow["TABLE_TYPE"].ToString().ToUpper();
+				
+				if(!DatabaseManager.ExcludedTables.Contains(tableNameRaw) && (tableType == "BASE TABLE" || tableType == "TABLE"))
 				{
 #>			
-			//********************<#=rawTableName #>********************
-			ITable <#=tableName #>Schema = new DatabaseTable("<#=rawTableName #>", DataProvider);
+			//
+			//******************** [<#=tableNameRaw #>] ********************
+			//
+			ITable <#=tableName #>Schema = new DatabaseTable("<#=tableNameRaw #>", DataProvider);
 <#+ 
-					DataTable tableColumns = DatabaseManager.GetTableColumns("", rawTableName);
-					string primaryKey = DatabaseManager.GetTablePrimaryKey("", rawTableName);
+					DataTable tableColumns = DatabaseManager.GetTableColumns("", tableNameRaw);
+					string primaryKey = DatabaseManager.GetTablePrimaryKey("", tableNameRaw);
 					foreach(DataRow columnRow in tableColumns.Rows)
 					{
 						string columnName = columnRow["ColumnName"].ToString();
-						string uniqueColumnName = tableName + columnName;
+						string uniqueColumnName = tableName + Utilities.CleanUp(columnName);
 #>
 			
 			IColumn <#=uniqueColumnName #> = new DatabaseColumn("<#=columnName #>", <#=tableName#>Schema);
