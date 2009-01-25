@@ -1,0 +1,55 @@
+﻿<#@ template language="C#v3.5" hostspecific="True" debug="True" #>
+<#@ output extension="log" #>
+<#@ include file="DatabaseSchema\DatabaseSchema.tt" #>
+<#
+// <copyright file="DatabaseSchemaCreator.tt" company="George J. Capnias">
+//
+//  The contents of this file are subject to the Mozilla Public
+//  License Version 1.1 (the "License"); you may not use this file
+//  except in compliance with the License. You may obtain a copy of
+//  the License at http://www.mozilla.org/MPL/
+//
+//  Software distributed under the License is distributed on an 
+//  "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+//  implied. See the License for the specific language governing
+//  rights and limitations under the License.
+//
+// </copyright>
+
+    this.ClearIndent();
+	DatabaseSchema schema = new DatabaseSchema("Integrated Security=SSPI;Persist Security Info=False;Initial Catalog=Northwind;Data Source=.\\sqlexpress", "System.Data.SqlClient", "Northwind");
+    DataTable dbTables = schema.GetTables();
+    dbTables = schema.GetTables();
+
+    this.WriteLine("");
+    foreach (DataRow tableRow in dbTables.Rows)
+    {
+        this.WriteLine(string.Format("TABLE_SCHEMA: {0}", tableRow["TABLE_SCHEMA"].ToString()));
+        this.WriteLine(string.Format("TABLE_NAME: {0}", tableRow["TABLE_NAME"].ToString()));
+        this.WriteLine(string.Format("TABLE_TYPE: {0}", tableRow["TABLE_TYPE"].ToString()));
+        this.PushIndent("\t");
+        DataTable columns = schema.GetTableColumns(tableRow["TABLE_SCHEMA"].ToString(), tableRow["TABLE_NAME"].ToString());
+        foreach (DataRow columnRow in columns.Rows)
+        {
+            this.WriteLine(string.Format("AllowDBNull: {0}", columnRow["AllowDBNull"].ToString()));
+            this.WriteLine(string.Format("BaseSchemaName: {0}", columnRow["BaseSchemaName"].ToString()));
+            this.WriteLine(string.Format("BaseTableName: {0}", columnRow["BaseTableName"].ToString()));
+            this.WriteLine(string.Format("BaseColumnName: {0}", columnRow["BaseColumnName"].ToString()));
+            this.WriteLine(string.Format("ColumnName: {0}", columnRow["ColumnName"].ToString()));
+            this.WriteLine(string.Format("ColumnOrdinal: {0}", columnRow["ColumnOrdinal"].ToString()));
+            this.WriteLine(string.Format("ColumnSize: {0}", columnRow["ColumnSize"].ToString()));
+            this.WriteLine(string.Format("DataType: {0}", columnRow["DataType"].ToString()));
+            this.WriteLine(string.Format("IsKey: {0}", columnRow["IsKey"].ToString()));
+            this.WriteLine(string.Format("IsLong: {0}", columnRow["IsLong"].ToString()));
+            this.WriteLine(string.Format("IsUnique: {0}", columnRow["IsUnique"].ToString()));
+            this.WriteLine(string.Format("NumericPrecision: {0}", columnRow["NumericPrecision"].ToString()));
+            this.WriteLine(string.Format("NumericScale: {0}", columnRow["NumericScale"].ToString()));
+            this.WriteLine("------------------------------");
+        }
+        this.PopIndent();
+        this.WriteLine("==============================");
+        this.WriteLine("");
+        
+    }
+
+#>
