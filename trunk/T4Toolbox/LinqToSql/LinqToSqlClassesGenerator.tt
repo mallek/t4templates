@@ -13,29 +13,29 @@ public class LinqToSqlClassesGenerator : Generator
 	/// </summary>
 	public LinqToSqlClassesGenerator()
 	{
-		this.DataContextTemplate = new LinqToSqlDataContextTemplate();
-		this.EntityClassTemplate = new LinqToSqlEntityClassTemplate();
+	    this.DataContextTemplate.OutputFile = () => this.DataContextTemplate.Database.Class + ".generated.cs";
+	    this.EntityClassTemplate.OutputFile = () => this.EntityClassTemplate.Type.Name + ".generated.cs";
 	}
 
 	/// <summary>
 	/// LINQ to SQL database object for which entities will be generated
 	/// </summary>
-	public Database Database { get; set; }
+	public Database Database = null;
 
 	/// <summary>
 	/// Name of the LINQ to SQL .dbml file
 	/// </summary>
-	public string DbmlFile { get; set; }
+	public string DbmlFile = null; 
 
 	/// <summary>
 	/// Gets or sets the template that will be used to generate DataContext class
 	/// </summary>
-	public LinqToSqlDataContextTemplate DataContextTemplate { get; set; }
+	public LinqToSqlDataContextTemplate DataContextTemplate = new LinqToSqlDataContextTemplate();
 
 	/// <summary>
 	/// Gets or sets the template that will be used to generate Entity classes
 	/// </summary>
-	public LinqToSqlEntityClassTemplate EntityClassTemplate { get; set; }
+	public LinqToSqlEntityClassTemplate EntityClassTemplate = new LinqToSqlEntityClassTemplate();
 
 	/// <summary>
 	/// Generates output files
@@ -45,7 +45,7 @@ public class LinqToSqlClassesGenerator : Generator
 		this.RemoveStandardDbmlCodeGeneration();
 
 		this.DataContextTemplate.Database = this.Database;
-		this.DataContextTemplate.RenderToFile(this.Database.Class + ".generated.cs");
+		this.DataContextTemplate.Render();
 
 		this.EntityClassTemplate.Database = this.Database;
 		foreach (Table table in this.Database.Table)
@@ -63,7 +63,7 @@ public class LinqToSqlClassesGenerator : Generator
 		this.EntityClassTemplate.Table = table;
 		this.EntityClassTemplate.Type = type;
 		this.EntityClassTemplate.BaseType = baseType;
-		this.EntityClassTemplate.RenderToFile(type.Name + ".generated.cs");
+		this.EntityClassTemplate.Render();
 
 		// If current type has children, derived types
 		if (type.Type1 != null)

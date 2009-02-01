@@ -23,6 +23,8 @@ public class NetSqlAzManWrapperGenerator : Generator
 	/// </summary>
     public NetSqlAzManWrapperGenerator()
     {
+        this.ApplicationEnumTemplate.OutputFile = delegate { return GetApplicationEnumName(this.ApplicationEnumTemplate.Application.Name) + ".cs"; };
+    
 		// Since wrapper class will be rendered to the standard output, use name of the main T4 file as class name.
 		string templateFileName = System.IO.Path.GetFileNameWithoutExtension(TransformationContext.Host.TemplateFile);
 		this.storeClassTemplate.ClassName = NetSqlAzManWrapperGenerator.GetValidName(templateFileName);
@@ -124,7 +126,7 @@ public class NetSqlAzManWrapperGenerator : Generator
             foreach (NetSqlAzMan.Interfaces.IAzManApplication application in authorizationStore.Applications.Values)
             {
 				this.ApplicationEnumTemplate.Application = application;
-                this.ApplicationEnumTemplate.RenderToFile(NetSqlAzManWrapperGenerator.GetApplicationEnumName(application.Name) + ".cs");
+                this.ApplicationEnumTemplate.Render();
             }
 
             // Render authorization store class to the default output of the code generator
