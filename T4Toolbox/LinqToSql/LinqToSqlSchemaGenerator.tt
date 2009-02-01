@@ -67,12 +67,12 @@ public class LinqToSqlSchemaGenerator : Generator
     /// </summary>
     public LinqToSqlSchemaGenerator()
     {
-        this.DeleteProcedureTemplate = new LinqToSqlDeleteProcedureTemplate();
-        this.ForeignKeyTemplate = new LinqToSqlForeignKeyTemplate();
-        this.InsertProcedureTemplate = new LinqToSqlInsertProcedureTemplate();
-        this.PrimaryKeyTemplate = new LinqToSqlPrimaryKeyTemplate();
-        this.TableTemplate = new LinqToSqlTableTemplate();
-        this.UpdateProcedureTemplate = new LinqToSqlUpdateProcedureTemplate();
+        this.TableTemplate.OutputFile = () => this.TableTemplate.Table.Name + ".table.sql";
+        this.PrimaryKeyTemplate.OutputFile = () => this.PrimaryKeyTemplate.Table.Name + "." + this.PrimaryKeyTemplate.ConstraintName + ".pkey.sql";
+        this.ForeignKeyTemplate.OutputFile = () => this.ForeignKeyTemplate.Table.Name + "." + this.ForeignKeyTemplate.ConstraintName + ".fkey.sql";
+        this.InsertProcedureTemplate.OutputFile = () => this.InsertProcedureTemplate.Table.Name + "_Insert.proc.sql";
+        this.UpdateProcedureTemplate.OutputFile = () => this.UpdateProcedureTemplate.Table.Name + "_Update.proc.sql";
+        this.DeleteProcedureTemplate.OutputFile = () => this.DeleteProcedureTemplate.Table.Name + "_Delete.proc.sql";
     }
 
     /// <summary>
@@ -88,32 +88,32 @@ public class LinqToSqlSchemaGenerator : Generator
     /// <summary>
     /// Gets or sets the template that will be used to generate delete procedure SQL scripts
     /// </summary>
-    public LinqToSqlDeleteProcedureTemplate DeleteProcedureTemplate { get; set; }
+    public LinqToSqlDeleteProcedureTemplate DeleteProcedureTemplate = new LinqToSqlDeleteProcedureTemplate();
 
     /// <summary>
     /// Gets or sets the template that will be used to generate foreign key SQL scripts
     /// </summary>
-    public LinqToSqlForeignKeyTemplate ForeignKeyTemplate { get; set; }
+    public LinqToSqlForeignKeyTemplate ForeignKeyTemplate = new LinqToSqlForeignKeyTemplate();
 
     /// <summary>
     /// Gets or sets the template that will be used to generate insert procedure SQL scripts
     /// </summary>
-    public LinqToSqlInsertProcedureTemplate InsertProcedureTemplate { get; set; }
+    public LinqToSqlInsertProcedureTemplate InsertProcedureTemplate = new LinqToSqlInsertProcedureTemplate();
 
     /// <summary>
     /// Gets or sets the template that will be used to generate primary key SQL scripts
     /// </summary>
-    public LinqToSqlPrimaryKeyTemplate PrimaryKeyTemplate { get; set; }
+    public LinqToSqlPrimaryKeyTemplate PrimaryKeyTemplate = new LinqToSqlPrimaryKeyTemplate();
 
     /// <summary>
     /// Gets or sets the template that will be used to generate create table SQL scripts
     /// </summary>
-    public LinqToSqlTableTemplate TableTemplate { get; set; }
+    public LinqToSqlTableTemplate TableTemplate = new LinqToSqlTableTemplate();
 
     /// <summary>
     /// Gets or sets the template that will be used to generate update procedure SQL scripts
     /// </summary>
-    public LinqToSqlUpdateProcedureTemplate UpdateProcedureTemplate { get; set; }
+    public LinqToSqlUpdateProcedureTemplate UpdateProcedureTemplate = new LinqToSqlUpdateProcedureTemplate();
 
 
     /// <summary>
@@ -130,11 +130,11 @@ public class LinqToSqlSchemaGenerator : Generator
         {
             // Generate table SQL script
             this.TableTemplate.Table = table;
-            this.TableTemplate.RenderToFile(table.Name + ".table.sql");
+            this.TableTemplate.Render();
 
             // Generate primary key SQL script
             this.PrimaryKeyTemplate.Table = table;
-            this.PrimaryKeyTemplate.RenderToFile(table.Name + "." + this.PrimaryKeyTemplate.ConstraintName + ".pkey.sql");
+            this.PrimaryKeyTemplate.Render();
 
             // Generate foreign key SQL scripts
             this.ForeignKeyTemplate.Database = this.Database;
@@ -145,21 +145,21 @@ public class LinqToSqlSchemaGenerator : Generator
                 if (association != null && association.IsForeignKey)
                 {
                     this.ForeignKeyTemplate.Association = association;
-                    this.ForeignKeyTemplate.RenderToFile(table.Name + "." + this.ForeignKeyTemplate.ConstraintName + ".fkey.sql");
+                    this.ForeignKeyTemplate.Render();
                 }
             }
 
             // Generate insert procedure SQL scripts
             this.InsertProcedureTemplate.Table = table;
-            this.InsertProcedureTemplate.RenderToFile(table.Name + "_Insert.proc.sql");
+            this.InsertProcedureTemplate.Render();
 
             // Generate delete procedure SQL scripts
             this.DeleteProcedureTemplate.Table = table;
-            this.DeleteProcedureTemplate.RenderToFile(table.Name + "_Delete.proc.sql");
+            this.DeleteProcedureTemplate.Render();
 
             // Generate update procedure SQL scripts
             this.UpdateProcedureTemplate.Table = table;
-            this.UpdateProcedureTemplate.RenderToFile(table.Name + "_Update.proc.sql");
+            this.UpdateProcedureTemplate.Render();
         }
     }
 

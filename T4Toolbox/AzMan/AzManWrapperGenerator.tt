@@ -5,20 +5,17 @@
 
 public class AzManWrapperGenerator : Generator
 {
-    private string azManXmlFile = string.Empty;
-    private string @namespace = string.Empty;
-    private AzManApplicationEnumTemplate applicationEnumTemplate = new AzManApplicationEnumTemplate();
-    private AzManStoreClassTemplate storeClassTemplate = new AzManStoreClassTemplate();
-
 	/// <summary>
 	/// Creates a new instance of <see cref="AzManWrapperGenerator"/> and initializes
 	/// default code generation parameters.
 	/// </summary>
     public AzManWrapperGenerator()
     {
+        this.ApplicationEnumTemplate.OutputFile = delegate { return GetApplicationEnumName(this.ApplicationEnumTemplate.Application.Name) + ".cs"; };
+
 		// Since wrapper class will be rendered to the standard output, use name of the main T4 file as class name.
 		string templateFileName = System.IO.Path.GetFileNameWithoutExtension(TransformationContext.Host.TemplateFile);
-		this.storeClassTemplate.ClassName = AzManWrapperGenerator.GetValidName(templateFileName);
+		this.StoreClassTemplate.ClassName = GetValidName(templateFileName);
     }
 
 	/// <summary>
@@ -28,11 +25,7 @@ public class AzManWrapperGenerator : Generator
 	/// <remarks>
 	/// You must assign value to this property. It supports relative and absolute paths.
 	/// </remarks>
-    public string AzManXmlFile
-    {
-        get { return this.azManXmlFile; }
-        set { this.azManXmlFile = value; }
-    }
+    public string AzManXmlFile = string.Empty;
 
 	/// <summary>
 	/// Gets or sets the name of the namespace in which the classes and enumerations
@@ -41,11 +34,7 @@ public class AzManWrapperGenerator : Generator
 	/// <remarks>
 	/// You must assign value to this property.
 	/// </remarks>
-    public string Namespace
-    {
-        get { return this.@namespace; }
-        set { this.@namespace = value; }
-    }
+    public string Namespace = string.Empty;
 
 	/// <summary>
 	/// Gets or sets the template that generates enumerated types for security operations 
@@ -55,11 +44,7 @@ public class AzManWrapperGenerator : Generator
 	/// You can customize generation of enumerated types by replacing the default template
 	/// with your custom version derived from <see cref="AzManApplicationEnumTemplate"/>.
 	/// </remarks>
-    public AzManApplicationEnumTemplate ApplicationEnumTemplate
-    {
-        get { return this.applicationEnumTemplate; }
-        set { this.applicationEnumTemplate = value; }
-    }
+    public AzManApplicationEnumTemplate ApplicationEnumTemplate = new AzManApplicationEnumTemplate();
 
 	/// <summary>
 	/// Gets or sets the template that generates authorization store wrapper class.
@@ -68,11 +53,7 @@ public class AzManWrapperGenerator : Generator
 	/// You can customize generation of the wrapper class by replacing the default template
 	/// with your custom version derived from <see cref="AzManStoreClassTemplate"/>.
 	/// </remarks>
-    public AzManStoreClassTemplate StoreClassTemplate
-    {
-        get { return this.storeClassTemplate; }
-        set { this.storeClassTemplate = value; }
-    }
+    public AzManStoreClassTemplate StoreClassTemplate = new AzManStoreClassTemplate();
 
     /// <summary>
     /// Generates wrapper class and application enumerations.
@@ -91,7 +72,7 @@ public class AzManWrapperGenerator : Generator
                 try
                 {
                     this.ApplicationEnumTemplate.Application = application;
-                    this.ApplicationEnumTemplate.RenderToFile(AzManWrapperGenerator.GetApplicationEnumName(application.Name) + ".cs");
+                    this.ApplicationEnumTemplate.Render();
                 }
                 finally
                 {
